@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Collections;
+using System.Numerics;
 using System.Threading;
 
 namespace StatMaster
@@ -35,11 +36,7 @@ namespace StatMaster
         /// <param name="w">The second value.</param>
         /// <param name="func">The combining function.</param>
         /// <returns>The combined value.</returns>
-        public static IReadOnlyValue<U> Zip<S, T, U>(
-            this IReadOnlyValue<S> v,
-            IReadOnlyValue<T> w,
-            Func<S, T, U> func
-        )
+        public static IReadOnlyValue<U> Zip<S, T, U>(this IReadOnlyValue<S> v, IReadOnlyValue<T> w, Func<S, T, U> func)
         {
             var u = ReadOnlyValue.Create(() => func(v.Value, w.Value), out var callOnChange);
             v.PropertyChanged += (_, _) => callOnChange();
@@ -56,11 +53,7 @@ namespace StatMaster
         /// <param name="get">The getter function.</param>
         /// <param name="set">The setter action.</param>
         /// <returns>The projected value.</returns>
-        public static IValue<T> Select<S, T>(
-            this IValue<S> v,
-            Func<S, T> get,
-            Action<IValue<S>, T> set
-        )
+        public static IValue<T> Select<S, T>(this IValue<S> v, Func<S, T> get, Action<IValue<S>, T> set)
         {
             var w = PropertyValue.Create(() => get(v.Value), x => set(v, x), out var callOnChange);
             v.PropertyChanged += (_, _) => callOnChange();
@@ -70,9 +63,9 @@ namespace StatMaster
         /// <summary>
         /// Represents a disposable object that executes an action when disposed.
         /// </summary>
-        private class ActionDisposable : IDisposable
+        class ActionDisposable : IDisposable
         {
-            private Action action;
+            Action action;
 
             public ActionDisposable(Action action) => this.action = action;
 
@@ -89,8 +82,7 @@ namespace StatMaster
         /// <param name="v">The object to subscribe to.</param>
         /// <param name="action">The action to execute on property change.</param>
         /// <returns>An <see cref="IDisposable"/> representing the subscription.</returns>
-        public static IDisposable OnChange<T>(this T v, Action<T> action)
-            where T : INotifyPropertyChanged
+        public static IDisposable OnChange<T>(this T v, Action<T> action) where T : INotifyPropertyChanged
         {
             v.PropertyChanged += PropertyChange;
             return new ActionDisposable(() => v.PropertyChanged -= PropertyChange);

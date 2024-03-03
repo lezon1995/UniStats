@@ -1,5 +1,4 @@
 using System.ComponentModel;
-using System.Collections.Generic;
 
 namespace StatMaster
 {
@@ -52,7 +51,7 @@ namespace StatMaster
     /// Represents a collection of modifiers that sequentially alter an initial value.
     /// </summary>
     /// <typeparam name="T">The type of the modifiable value.</typeparam>
-    public interface IModifiable<T> : IReadOnlyValue<T>, INotifyPropertyChanged
+    public interface IModifiable<T> : IReadOnlyValue<T>
     {
         /// <summary>
         /// Gets the collection of modifiers that alter the modifiable value.

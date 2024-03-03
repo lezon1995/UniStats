@@ -1,5 +1,5 @@
-using System;
 using System.ComponentModel;
+using System.Numerics;
 
 namespace StatMaster
 {
@@ -14,6 +14,7 @@ namespace StatMaster
         [UnityEngine.SerializeField]
 #endif
         protected T _value;
+
         public virtual T Value
         {
             get => _value;
@@ -27,13 +28,18 @@ namespace StatMaster
         /// <summary>
         /// Initializes a new instance of the <see cref="PropertyValue{T}"/> class.
         /// </summary>
-        public PropertyValue() { }
+        public PropertyValue()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="PropertyValue{T}"/> class with the specified initial value.
         /// </summary>
         /// <param name="value">The initial value of the property.</param>
-        public PropertyValue(T value) => _value = value;
+        public PropertyValue(T value)
+        {
+            _value = value;
+        }
 
         /// <summary>
         /// Event that is raised when the value of the property changes.
@@ -43,9 +49,7 @@ namespace StatMaster
         /// <summary>
         /// This is more costly: OnChange(nameof(value)). So let's just do this.
         /// </summary>
-        private static PropertyChangedEventArgs valueEventArgs = new PropertyChangedEventArgs(
-            nameof(Value)
-        );
+        static PropertyChangedEventArgs valueEventArgs = new PropertyChangedEventArgs(nameof(Value));
 
         /// <summary>
         /// Raises the PropertyChanged event with the provided property name.
@@ -67,10 +71,12 @@ namespace StatMaster
         /// </summary>
         /// <typeparam name="T">The type of the value.</typeparam>
         /// <param name="valueGetter">The function that retrieves the value.</param>
-        /// <param name="callOnChange">The action to call when the value changes.</param>
+        /// <param name="onChange">The action to call when the value changes.</param>
         /// <returns>The created <see cref="IReadOnlyValue{T}"/> instance.</returns>
-        public static IReadOnlyValue<T> Create<T>(Func<T> valueGetter, out Action callOnChange) =>
-            new DerivedReadOnlyValue<T>(valueGetter, out callOnChange);
+        public static IReadOnlyValue<T> Create<T>(Func<T> valueGetter, out Action onChange)
+        {
+            return new DerivedReadOnlyValue<T>(valueGetter, out onChange);
+        }
 
         /// <summary>
         /// Creates a new instance of <see cref="IReadOnlyValue{T}"/> using the provided value getter function.
@@ -78,34 +84,35 @@ namespace StatMaster
         /// <typeparam name="T">The type of the value.</typeparam>
         /// <param name="valueGetter">The function that retrieves the value.</param>
         /// <returns>The created <see cref="IReadOnlyValue{T}"/> instance.</returns>
-        public static IReadOnlyValue<T> Create<T>(Func<T> f) =>
-            new DerivedReadOnlyValue<T>(f, out var callOnChange);
+        public static IReadOnlyValue<T> Create<T>(Func<T> f)
+        {
+            return new DerivedReadOnlyValue<T>(f, out var onChange);
+        }
 
         /// <summary>
         /// Represents a derived implementation of <see cref="IReadOnlyValue{T}"/>.
         /// </summary>
         /// <typeparam name="T">The type of the value.</typeparam>
-        internal class DerivedReadOnlyValue<T> : IReadOnlyValue<T>
+        class DerivedReadOnlyValue<T> : IReadOnlyValue<T>
         {
-            private readonly Func<T> _valueGetter;
+            readonly Func<T> _valueGetter;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="DerivedReadOnlyValue{T}"/> class with the specified value getter function.
             /// </summary>
             /// <param name="valueGetter">The function that retrieves the value.</param>
-            /// <param name="callOnChange">The action to call when the value changes.</param>
-            public DerivedReadOnlyValue(Func<T> valueGetter, out Action callOnChange)
+            /// <param name="onChange">The action to call when the value changes.</param>
+            public DerivedReadOnlyValue(Func<T> valueGetter, out Action onChange)
             {
                 _valueGetter = valueGetter;
-                callOnChange = OnChange;
+                onChange = OnChange;
             }
 
             public T Value => _valueGetter();
 
             public event PropertyChangedEventHandler PropertyChanged;
-            private static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(
-                nameof(Value)
-            );
+
+            static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
 
             /// <summary>
             /// Raises the PropertyChanged event to notify listeners of a value change.
@@ -125,32 +132,32 @@ namespace StatMaster
         /// <typeparam name="T">The type of the value.</typeparam>
         /// <param name="getter">The getter function for accessing the value.</param>
         /// <param name="setter">The setter action for modifying the value.</param>
-        /// <param name="callOnChange">The action to call when the value changes.</param>
+        /// <param name="onChange">The action to call when the value changes.</param>
         /// <returns>An instance of <see cref="IValue{T}"/>.</returns>
-        public static IValue<T> Create<T>(Func<T> getter, Action<T> setter, out Action callOnChange)
+        public static IValue<T> Create<T>(Func<T> getter, Action<T> setter, out Action onChange)
         {
-            return new DerivedValue<T>(getter, setter, out callOnChange);
+            return new DerivedValue<T>(getter, setter, out onChange);
         }
 
         /// <summary>
         /// An implementation of <see cref="IValue{T}"/> that encapsulates a value with customizable getter and setter functions.
         /// </summary>
-        internal class DerivedValue<T> : IValue<T>
+        class DerivedValue<T> : IValue<T>
         {
-            private readonly Func<T> _getter;
-            private readonly Action<T> _setter;
+            readonly Func<T> _getter;
+            readonly Action<T> _setter;
 
             /// <summary>
             /// Initializes a new instance of the <see cref="DerivedValue{T}"/> class with the provided getter, setter, and callback for value changes.
             /// </summary>
             /// <param name="getter">The getter function for accessing the value.</param>
             /// <param name="setter">The setter action for modifying the value.</param>
-            /// <param name="callOnChange">The action to call when the value changes.</param>
-            public DerivedValue(Func<T> getter, Action<T> setter, out Action callOnChange)
+            /// <param name="onChange">The action to call when the value changes.</param>
+            public DerivedValue(Func<T> getter, Action<T> setter, out Action onChange)
             {
                 _getter = getter;
                 _setter = setter;
-                callOnChange = OnChange;
+                onChange = OnChange;
             }
 
             public T Value
@@ -160,11 +167,13 @@ namespace StatMaster
             }
 
             public event PropertyChangedEventHandler PropertyChanged;
-            private static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(
-                nameof(Value)
-            );
 
-            protected void OnChange() => PropertyChanged?.Invoke(this, eventArgs);
+            static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
+
+            protected void OnChange()
+            {
+                PropertyChanged?.Invoke(this, eventArgs);
+            }
         }
     }
 
@@ -189,7 +198,8 @@ namespace StatMaster
         where T : INumber<T>
 #endif
     {
-        private T _value;
+        T _value;
+
         public T Value
         {
             get => _value;
@@ -210,9 +220,15 @@ namespace StatMaster
         {
 #if NET7_0_OR_GREATER
             if (value < minValue)
+            {
                 value = minValue;
+            }
+
             if (value > maxValue)
+            {
                 value = maxValue;
+            }
+
             return value;
 #else
             var op = Modifier.GetOperator<T>();
@@ -242,7 +258,9 @@ namespace StatMaster
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
         public BoundedValue(T value, T lowerBound, IReadOnlyValue<T> upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), upperBound) { }
+            : this(value, new ReadOnlyValue<T>(lowerBound), upperBound)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
@@ -251,7 +269,9 @@ namespace StatMaster
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
         public BoundedValue(T value, IReadOnlyValue<T> lowerBound, T upperBound)
-            : this(value, lowerBound, new ReadOnlyValue<T>(upperBound)) { }
+            : this(value, lowerBound, new ReadOnlyValue<T>(upperBound))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
@@ -260,19 +280,23 @@ namespace StatMaster
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
         public BoundedValue(T value, T lowerBound, T upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), new ReadOnlyValue<T>(upperBound)) { }
+            : this(value, new ReadOnlyValue<T>(lowerBound), new ReadOnlyValue<T>(upperBound))
+        {
+        }
 
-        private void BoundChanged(object sender, PropertyChangedEventArgs e)
+        void BoundChanged(object sender, PropertyChangedEventArgs e)
         {
             Value = _value;
         }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        private static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(
-            nameof(Value)
-        );
 
-        protected void OnChange() => PropertyChanged?.Invoke(this, eventArgs);
+        static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
+
+        protected void OnChange()
+        {
+            PropertyChanged?.Invoke(this, eventArgs);
+        }
     }
 
     /// <summary>
@@ -285,7 +309,7 @@ namespace StatMaster
 #if UNITY_5_3_OR_NEWER
         [UnityEngine.SerializeField]
 #endif
-        private readonly T _value;
+        readonly T _value;
 
         public T Value => _value;
 
@@ -302,20 +326,24 @@ namespace StatMaster
         /// Initializes a new instance of the ReadOnlyValue class with the specified value and action.
         /// </summary>
         /// <param name="value">The value to be encapsulated.</param>
-        /// <param name="callOnChange">The action to call when the value changes.</param>
-        public ReadOnlyValue(T value, Action callOnChange)
-            : this(value) => callOnChange = OnChange;
+        /// <param name="onChange">The action to call when the value changes.</param>
+        public ReadOnlyValue(T value, out Action onChange) : this(value)
+        {
+            onChange = OnChange;
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
-        private static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(
-            nameof(Value)
-        );
+
+        static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
 
         protected void OnChange()
         {
             PropertyChanged?.Invoke(this, eventArgs);
         }
 
-        public override string ToString() => Value.ToString();
+        public override string ToString()
+        {
+            return Value.ToString();
+        }
     }
 }

@@ -4,16 +4,16 @@ namespace StatMaster.Tests
 {
     public class ModifiableValueTest
     {
-        private ModifiableValue<float> health;
-        private IModifiable<float> currentHealth;
-        private IModifier<float> boost;
-        private IModifier<float> boost20;
-        private IModifier<IValue<float>, float> damage;
+        ModifiableValue<float> health;
+        IModifiable<float> currentHealth;
+        IModifier<float> boost;
+        IModifier<float> boost20;
+        IModifier<IValue<float>, float> damage;
 
-        private int healthNotifications = 0;
-        private int currentHealthNotifications = 0;
-        private int damageNotifications = 0;
-        private int boostNotifications = 0;
+        int healthNotifications = 0;
+        int currentHealthNotifications = 0;
+        int damageNotifications = 0;
+        int boostNotifications = 0;
 
         public ModifiableValueTest()
         {
@@ -22,13 +22,13 @@ namespace StatMaster.Tests
             AttachEventHandlers();
         }
 
-        private void InitializeValues()
+        void InitializeValues()
         {
             health = new ModifiableValue<float>(100f);
             currentHealth = new ModifiableReadOnlyValue<float>(health);
         }
 
-        private void InitializeModifiers()
+        void InitializeModifiers()
         {
             boost = Modifier.Times(1.10f, "10% boost");
             boost20 = Modifier.Times(1.2f, "20% boost");
@@ -37,7 +37,7 @@ namespace StatMaster.Tests
             currentHealth.Modifiers.Add(damage);
         }
 
-        private void AttachEventHandlers()
+        void AttachEventHandlers()
         {
             health.PropertyChanged += (_, _) => healthNotifications++;
             currentHealth.PropertyChanged += (_, _) => currentHealthNotifications++;

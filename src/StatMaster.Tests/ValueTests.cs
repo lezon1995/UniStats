@@ -1,11 +1,12 @@
+using System.Numerics;
 using StatMaster;
 
 namespace StatMaster.Tests
 {
     public class ValueTests
     {
-        private PropertyValue<int> a;
-        private IValue<int> b;
+        PropertyValue<int> a;
+        IValue<int> b;
 
         public ValueTests()
         {
@@ -75,6 +76,11 @@ namespace StatMaster.Tests
 
             v.Initial.Value = 200f;
             Assert.Equal(100f, v.Value);
+        }
+        
+        [Fact]
+        public void INumber_Test()
+        {
         }
     }
 }

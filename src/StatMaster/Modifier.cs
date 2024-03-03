@@ -4,10 +4,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.ComponentModel;
 using System.Threading;
-using System.Runtime.CompilerServices;
 #if NET7_0_OR_GREATER
 using System.Numerics;
 #endif
+
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
 #endif
@@ -24,14 +24,13 @@ namespace StatMaster
         /// </summary>
         /// <typeparam name="T">The value type.</typeparam>
         /// <param name="func">The function to modify the value.</param>
-        /// <param name="callOnChange">The action to call on change.</param>
+        /// <param name="onChange">The action to call on change.</param>
         /// <param name="funcExpression">The expression representing the function.</param>
         /// <returns>The created modifier.</returns>
-        public static IModifier<T> Create<T>(
-            Func<T, T> func,
-            out Action callOnChange,
-            [CallerArgumentExpression("func")] string funcExpression = null
-        ) => new FuncModifier<T>(func, out callOnChange) { Name = funcExpression };
+        public static IModifier<T> Create<T>(Func<T, T> func, out Action onChange, string funcExpression = null)
+        {
+            return new FuncModifier<T>(func, out onChange) { Name = funcExpression };
+        }
 
         /// <summary>
         /// Creates a modifier based on a provided function.
@@ -40,31 +39,37 @@ namespace StatMaster
         /// <param name="func">The function to modify the value.</param>
         /// <param name="funcExpression">The expression representing the function.</param>
         /// <returns>The created modifier.</returns>
-        public static IModifier<T> Create<T>(
-            Func<T, T> func,
-            [CallerArgumentExpression("func")] string funcExpression = null
-        ) => new FuncModifier<T>(func) { Name = funcExpression };
+        public static IModifier<T> Create<T>(Func<T, T> func, string funcExpression = null)
+        {
+            return new FuncModifier<T>(func) { Name = funcExpression };
+        }
 
         /// <summary>
         /// Represents a modifier based on a function.
         /// </summary>
         /// <typeparam name="T">The value type.</typeparam>
-        internal class FuncModifier<T> : ContextModifier<Func<T, T>, T>
+        class FuncModifier<T> : ContextModifier<Func<T, T>, T>
         {
-            public FuncModifier(Func<T, T> func, out Action callOnChange)
-                : this(func)
+            public FuncModifier(Func<T, T> func, out Action onChange) : this(func)
             {
-                callOnChange = () => OnChange(nameof(Context));
+                onChange = () => OnChange(nameof(Context));
             }
 
-            public FuncModifier(Func<T, T> func)
-                : base(func) { }
+            public FuncModifier(Func<T, T> func) : base(func)
+            {
+            }
 
             /// <inheritdoc/>
-            public override T Modify(T given) => Context(given);
+            public override T Modify(T given)
+            {
+                return Context(given);
+            }
 
             /// <inheritdoc/>
-            public override string ToString() => Name ?? "?f()";
+            public override string ToString()
+            {
+                return Name ?? "?f()";
+            }
         }
 
         /// <summary>
@@ -76,7 +81,12 @@ namespace StatMaster
         public static void EnableAfter<T>(this IModifier<T> modifier, TimeSpan timeSpan)
         {
             var timer = new Timer(Enable, modifier, timeSpan, Timeout.InfiniteTimeSpan);
-            void Enable(object modifier) => ((IModifier<T>)modifier).Enabled = true;
+            return;
+
+            void Enable(object _modifier)
+            {
+                ((IModifier<T>)_modifier).Enabled = true;
+            }
         }
 
         /// <summary>
@@ -88,7 +98,12 @@ namespace StatMaster
         public static void DisableAfter<T>(this IModifier<T> modifier, TimeSpan timeSpan)
         {
             var timer = new Timer(Disable, modifier, timeSpan, Timeout.InfiniteTimeSpan);
-            void Disable(object modifier) => ((IModifier<T>)modifier).Enabled = false;
+            return;
+
+            void Disable(object _modifier)
+            {
+                ((IModifier<T>)_modifier).Enabled = false;
+            }
         }
 
         /// <summary>
@@ -99,8 +114,10 @@ namespace StatMaster
         /// <param name="modifier">The modifier to wrap.</param>
         /// <param name="context">The context to associate with the modifier.</param>
         /// <returns>The wrapped modifier.</returns>
-        public static IModifier<S, T> WithContext<S, T>(this IModifier<T> modifier, S context) =>
-            new WrappedModifier<S, T>(context, modifier);
+        public static IModifier<S, T> WithContext<S, T>(this IModifier<T> modifier, S context)
+        {
+            return new WrappedModifier<S, T>(context, modifier);
+        }
 
         /// <summary>
         /// Represents a wrapped modifier that decorates an inner modifier.
@@ -108,7 +125,7 @@ namespace StatMaster
         /// <typeparam name="S">The context type.</typeparam>
         /// <typeparam name="T">The value type.</typeparam>
         ///
-        internal class WrappedModifier<S, T> : ContextModifier<S, T>, IDecorator<IModifier<T>>
+        class WrappedModifier<S, T> : ContextModifier<S, T>, IDecorator<IModifier<T>>
         {
             protected IModifier<T> inner;
 
@@ -129,18 +146,23 @@ namespace StatMaster
             /// </summary>
             /// <param name="context">The context.</param>
             /// <param name="inner">The inner modifier to be decorated.</param>
-            public WrappedModifier(S context, IModifier<T> inner)
-                : base(context)
+            public WrappedModifier(S context, IModifier<T> inner) : base(context)
             {
                 this.inner = inner;
                 this.inner.PropertyChanged += Chain;
             }
 
             /// <inheritdoc/>
-            public override T Modify(T given) => inner.Modify(given);
+            public override T Modify(T given)
+            {
+                return inner.Modify(given);
+            }
 
             /// <inheritdoc/>
-            public override string ToString() => inner.ToString();
+            public override string ToString()
+            {
+                return inner.ToString();
+            }
         }
 
 #if UNITY_5_3_OR_NEWER
@@ -182,11 +204,7 @@ namespace StatMaster
         /// <param name="index">The index of the value in the list.</param>
         /// <param name="name">The name of the target.</param>
         /// <returns>The target for modifying the list value.</returns>
-        public static ITarget<IList<IModifiableValue<T>>, T> TargetList<T>(
-            this IModifier<T> modifier,
-            int index,
-            [CallerArgumentExpression("index")] string name = null
-        )
+        public static ITarget<IList<IModifiableValue<T>>, T> TargetList<T>(this IModifier<T> modifier, int index, string name = null)
         {
             return new ListTarget<T>
             {
@@ -205,17 +223,15 @@ namespace StatMaster
         /// <param name="key">The key of the value in the dictionary.</param>
         /// <param name="name">The name of the target.</param>
         /// <returns>The target for modifying the dictionary value.</returns>
-        public static ITarget<IDictionary<K, IModifiableValue<T>>, T> TargetDictionary<K, T>(
-            this IModifier<T> modifier,
-            K key,
-            [CallerArgumentExpression("key")] string name = null
-        ) =>
-            new DictionaryTarget<K, T>
+        public static ITarget<IDictionary<K, IModifiableValue<T>>, T> TargetDictionary<K, T>(this IModifier<T> modifier, K key, string name = null)
+        {
+            return new DictionaryTarget<K, T>
             {
                 Modifier = modifier,
                 Context = key,
                 Name = name
             };
+        }
 
         /// <summary>
         /// Creates a target for modifying a value based on a custom target function.
@@ -226,17 +242,15 @@ namespace StatMaster
         /// <param name="target">The function that provides the target value.</param>
         /// <param name="name">The name of the target.</param>
         /// <returns>The target for modifying the value based on the custom target function.</returns>
-        public static ITarget<S, T> Target<S, T>(
-            this IModifier<T> modifier,
-            Func<S, IModifiableValue<T>> target,
-            string name = null
-        ) =>
-            new FuncTarget<S, T>
+        public static ITarget<S, T> Target<S, T>(this IModifier<T> modifier, Func<S, IModifiableValue<T>> target, string name = null)
+        {
+            return new FuncTarget<S, T>
             {
                 Modifier = modifier,
                 Context = target,
                 Name = name
             };
+        }
 
         /// <summary>
         /// Represents a base class for targets that apply modifications to values.
@@ -277,7 +291,10 @@ namespace StatMaster
             /// Returns the string representation of the target.
             /// </summary>
             /// <returns>The string representation of the target.</returns>
-            public override string ToString() => Name ?? DefaultName;
+            public override string ToString()
+            {
+                return Name ?? DefaultName;
+            }
         }
 
         /// <summary>
@@ -287,7 +304,10 @@ namespace StatMaster
         /// <typeparam name="T">The type of the value.</typeparam>
         internal class FuncTarget<S, T> : BaseTarget<Func<S, IModifiableValue<T>>, S, T>
         {
-            public override IModifiable<T> AppliesTo(S bag) => Context(bag);
+            public override IModifiable<T> AppliesTo(S bag)
+            {
+                return Context(bag);
+            }
         }
 
         /// <summary>
@@ -296,8 +316,10 @@ namespace StatMaster
         /// <typeparam name="T">The type of the value.</typeparam>
         internal class ListTarget<T> : BaseTarget<int, IList<IModifiableValue<T>>, T>
         {
-            public override IModifiable<T> AppliesTo(IList<IModifiableValue<T>> bag) =>
-                bag[Context];
+            public override IModifiable<T> AppliesTo(IList<IModifiableValue<T>> bag)
+            {
+                return bag[Context];
+            }
         }
 
         /// <summary>
@@ -305,11 +327,12 @@ namespace StatMaster
         /// </summary>
         /// <typeparam name="K">The type of the dictionary key.</typeparam>
         /// <typeparam name="T">The type of the value.</typeparam>
-        internal class DictionaryTarget<K, T>
-            : BaseTarget<K, IDictionary<K, IModifiableValue<T>>, T>
+        internal class DictionaryTarget<K, T> : BaseTarget<K, IDictionary<K, IModifiableValue<T>>, T>
         {
-            public override IModifiable<T> AppliesTo(IDictionary<K, IModifiableValue<T>> bag) =>
-                bag[Context];
+            public override IModifiable<T> AppliesTo(IDictionary<K, IModifiableValue<T>> bag)
+            {
+                return bag[Context];
+            }
         }
 
 #if NET7_0_OR_GREATER
@@ -323,8 +346,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Plus<S>(S v, string name = null)
-            where S : INumber<S> => Plus(new ReadOnlyValue<S>(v), name);
+        public static IModifier<IReadOnlyValue<S>, S> Plus<S>(S v, string name = null) where S : INumber<S>
+        {
+            return Plus(new ReadOnlyValue<S>(v), name);
+        }
 
         /// <summary>
         /// Creates a plus modifier with the specified value and name.
@@ -333,12 +358,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Plus<S>(
-            IReadOnlyValue<S> v,
-            string name = null
-        )
-            where S : INumber<S> =>
-            new NumericalModifier<IReadOnlyValue<S>, S>(v) { name = name, symbol = '+' };
+        public static IModifier<IReadOnlyValue<S>, S> Plus<S>(IReadOnlyValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IReadOnlyValue<S>, S>(v) { Name = name, Symbol = '+' };
+        }
 
         /// <summary>
         /// Creates a plus modifier with the specified value and name.
@@ -347,9 +370,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IValue<S>, S> Plus<S>(IValue<S> v, string name = null)
-            where S : INumber<S> =>
-            new NumericalModifier<IValue<S>, S>(v) { name = name, symbol = '+' };
+        public static IModifier<IValue<S>, S> Plus<S>(IValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IValue<S>, S>(v) { Name = name, Symbol = '+' };
+        }
 
         // Times
 
@@ -360,8 +384,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Times<S>(S v, string name = null)
-            where S : INumber<S> => Times(new ReadOnlyValue<S>(v), name);
+        public static IModifier<IReadOnlyValue<S>, S> Times<S>(S v, string name = null) where S : INumber<S>
+        {
+            return Times(new ReadOnlyValue<S>(v), name);
+        }
 
         /// <summary>
         /// Creates a times modifier with the specified value and name.
@@ -370,12 +396,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Times<S>(
-            IReadOnlyValue<S> v,
-            string name = null
-        )
-            where S : INumber<S> =>
-            new NumericalModifier<IReadOnlyValue<S>, S>(v) { name = name, symbol = '*' };
+        public static IModifier<IReadOnlyValue<S>, S> Times<S>(IReadOnlyValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IReadOnlyValue<S>, S>(v) { Name = name, Symbol = '*' };
+        }
 
         /// <summary>
         /// Creates a times modifier with the specified value and name.
@@ -384,9 +408,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IValue<S>, S> Times<S>(IValue<S> v, string name = null)
-            where S : INumber<S> =>
-            new NumericalModifier<IValue<S>, S>(v) { name = name, symbol = '*' };
+        public static IModifier<IValue<S>, S> Times<S>(IValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IValue<S>, S>(v) { Name = name, Symbol = '*' };
+        }
 
         // Minus
 
@@ -397,8 +422,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Minus<S>(S v, string name = null)
-            where S : INumber<S> => Minus(new ReadOnlyValue<S>(v), name);
+        public static IModifier<IReadOnlyValue<S>, S> Minus<S>(S v, string name = null) where S : INumber<S>
+        {
+            return Minus(new ReadOnlyValue<S>(v), name);
+        }
 
         /// <summary>
         /// Creates a minus modifier with the specified value and name.
@@ -407,12 +434,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Minus<S>(
-            IReadOnlyValue<S> v,
-            string name = null
-        )
-            where S : INumber<S> =>
-            new NumericalModifier<IReadOnlyValue<S>, S>(v) { name = name, symbol = '-' };
+        public static IModifier<IReadOnlyValue<S>, S> Minus<S>(IReadOnlyValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IReadOnlyValue<S>, S>(v) { Name = name, Symbol = '-' };
+        }
 
         /// <summary>
         /// Creates a minus modifier with the specified value and name.
@@ -421,9 +446,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IValue<S>, S> Minus<S>(IValue<S> v, string name = null)
-            where S : INumber<S> =>
-            new NumericalModifier<IValue<S>, S>(v) { name = name, symbol = '-' };
+        public static IModifier<IValue<S>, S> Minus<S>(IValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IValue<S>, S>(v) { Name = name, Symbol = '-' };
+        }
 
         // Divide
 
@@ -434,8 +460,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Divide<S>(S v, string name = null)
-            where S : INumber<S> => Divide(new ReadOnlyValue<S>(v), name);
+        public static IModifier<IReadOnlyValue<S>, S> Divide<S>(S v, string name = null) where S : INumber<S>
+        {
+            return Divide(new ReadOnlyValue<S>(v), name);
+        }
 
         /// <summary>
         /// Creates a divide modifier with the specified value and name.
@@ -444,12 +472,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Divide<S>(
-            IReadOnlyValue<S> v,
-            string name = null
-        )
-            where S : INumber<S> =>
-            new NumericalModifier<IReadOnlyValue<S>, S>(v) { name = name, symbol = '/' };
+        public static IModifier<IReadOnlyValue<S>, S> Divide<S>(IReadOnlyValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IReadOnlyValue<S>, S>(v) { Name = name, Symbol = '/' };
+        }
 
         /// <summary>
         /// Creates a divide modifier with the specified value and name.
@@ -458,9 +484,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IValue<S>, S> Divide<S>(IValue<S> v, string name = null)
-            where S : INumber<S> =>
-            new NumericalModifier<IValue<S>, S>(v) { name = name, symbol = '/' };
+        public static IModifier<IValue<S>, S> Divide<S>(IValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IValue<S>, S>(v) { Name = name, Symbol = '/' };
+        }
 
         // Substitute
 
@@ -471,8 +498,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Substitute<S>(S v, string name = null)
-            where S : INumber<S> => Substitute(new ReadOnlyValue<S>(v), name);
+        public static IModifier<IReadOnlyValue<S>, S> Substitute<S>(S v, string name = null) where S : INumber<S>
+        {
+            return Substitute(new ReadOnlyValue<S>(v), name);
+        }
 
         /// <summary>
         /// Creates a substitute modifier with the specified value and name.
@@ -481,12 +510,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IReadOnlyValue<S>, S> Substitute<S>(
-            IReadOnlyValue<S> v,
-            string name = null
-        )
-            where S : INumber<S> =>
-            new NumericalModifier<IReadOnlyValue<S>, S>(v) { name = name, symbol = '=' };
+        public static IModifier<IReadOnlyValue<S>, S> Substitute<S>(IReadOnlyValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IReadOnlyValue<S>, S>(v) { Name = name, Symbol = '=' };
+        }
 
         /// <summary>
         /// Creates a substitute modifier with the specified value and name.
@@ -495,9 +522,10 @@ namespace StatMaster
         /// <param name="v">The value.</param>
         /// <param name="name">The name of the modifier.</param>
         /// <returns>The plus modifier.</returns>
-        public static IModifier<IValue<S>, S> Substitute<S>(IValue<S> v, string name = null)
-            where S : INumber<S> =>
-            new NumericalModifier<IValue<S>, S>(v) { name = name, symbol = '=' };
+        public static IModifier<IValue<S>, S> Substitute<S>(IValue<S> v, string name = null) where S : INumber<S>
+        {
+            return new NumericalModifier<IValue<S>, S>(v) { Name = name, Symbol = '=' };
+        }
 #else
         /// <summary>
         /// Represents an operator for performing mathematical operations on a generic type.
@@ -890,11 +918,15 @@ namespace StatMaster
             /// Initializes a new instance of the <see cref="CastingModifier{S, T}"/> class with the specified context.
             /// </summary>
             /// <param name="context">The context.</param>
-            public CastingModifier(IModifier<S> context)
-                : base(context) { }
+            public CastingModifier(IModifier<S> context) : base(context)
+            {
+            }
 
 #if NET7_0_OR_GREATER
-            public override T Modify(T given) => T.Create(context.Modify(S.Create(given)));
+            public override T Modify(T given)
+            {
+                return T.CreateChecked(Context.Modify(S.CreateChecked(given)));
+            }
 #else
             public override T Modify(T given)
             {
@@ -919,7 +951,8 @@ namespace StatMaster
         /// Gets or sets the name of the modifier.
         /// </summary>
         public string Name { get; init; }
-        private bool _enabled = true;
+
+        bool _enabled = true;
 
         /// <summary>
         /// Gets or sets a value indicating whether the modifier is enabled.
@@ -929,10 +962,11 @@ namespace StatMaster
             get => _enabled;
             set
             {
-                if (_enabled == value)
-                    return;
-                _enabled = value;
-                OnChange(nameof(Enabled));
+                if (_enabled != value)
+                {
+                    _enabled = value;
+                    OnChange(nameof(Enabled));
+                }
             }
         }
 
@@ -947,7 +981,10 @@ namespace StatMaster
         public ContextModifier(S context)
         {
             if (context is INotifyPropertyChanged notify)
+            {
                 notify.PropertyChanged += Chain;
+            }
+
             Context = context;
         }
 
@@ -965,8 +1002,10 @@ namespace StatMaster
         /// </summary>
         /// <param name="sender">The sender of the event.</param>
         /// <param name="args">The event arguments.</param>
-        internal void Chain(object sender, PropertyChangedEventArgs args) =>
+        internal void Chain(object sender, PropertyChangedEventArgs args)
+        {
             OnChange(nameof(Context));
+        }
 
         /// <summary>
         /// Modifies the given value.
@@ -978,7 +1017,9 @@ namespace StatMaster
         public void Dispose()
         {
             if (Context is INotifyPropertyChanged notify)
+            {
                 notify.PropertyChanged -= Chain;
+            }
         }
 
         /// <summary>
@@ -1006,8 +1047,7 @@ namespace StatMaster
     /// </summary>
     /// <typeparam name="S">The type of the context value.</typeparam>
     /// <typeparam name="T">The numeric type.</typeparam>
-    public class NumericalModifier<S, T> : ContextModifier<S, T>
-        where S : IReadOnlyValue<T>
+    public class NumericalModifier<S, T> : ContextModifier<S, T> where S : IReadOnlyValue<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
 #endif
@@ -1021,14 +1061,15 @@ namespace StatMaster
         /// Initializes a new instance of the <see cref="NumericalModifier{S, T}"/> class with the specified context.
         /// </summary>
         /// <param name="context">The context value.</param>
-        public NumericalModifier(S context)
-            : base(context) { }
+        public NumericalModifier(S context) : base(context)
+        {
+        }
 
 #if NET7_0_OR_GREATER
         public override T Modify(T given)
         {
-            T v = context.value;
-            switch (symbol)
+            T v = Context.Value;
+            switch (Symbol)
             {
                 case '+':
                     return given + v;
@@ -1041,7 +1082,7 @@ namespace StatMaster
                 case '=':
                     return v;
                 default:
-                    throw new NotImplementedException("Unsupported symbol: " + symbol);
+                    throw new NotImplementedException("Unsupported symbol: " + Symbol);
             }
         }
 #else
@@ -1083,6 +1124,7 @@ namespace StatMaster
                 builder.Append('"');
                 builder.Append(' ');
             }
+
             builder.Append(Symbol);
 
             builder.Append(Context);
@@ -1103,8 +1145,10 @@ namespace StatMaster
         /// <typeparam name="T">The type of the modifier.</typeparam>
         /// <param name="applicator">The applicator implementing ITarget<S, T>.</param>
         /// <param name="bag">The bag to which the modifier will be added.</param>
-        public static void AddToBag<S, T>(this ITarget<S, T> applicator, S bag) =>
+        public static void AddToBag<S, T>(this ITarget<S, T> applicator, S bag)
+        {
             applicator.AppliesTo(bag).Modifiers.Add(applicator.Modifier);
+        }
 
         /// <summary>
         /// Removes the modifier associated with the applicator from the bag.
@@ -1114,8 +1158,10 @@ namespace StatMaster
         /// <param name="applicator">The applicator implementing ITarget<S, T>.</param>
         /// <param name="bag">The bag from which the modifier will be removed.</param>
         /// <returns>True if the modifier was successfully removed, otherwise false.</returns>
-        public static bool RemoveFromBag<S, T>(this ITarget<S, T> applicator, S bag) =>
-            applicator.AppliesTo(bag).Modifiers.Remove(applicator.Modifier);
+        public static bool RemoveFromBag<S, T>(this ITarget<S, T> applicator, S bag)
+        {
+            return applicator.AppliesTo(bag).Modifiers.Remove(applicator.Modifier);
+        }
 
         /// <summary>
         /// Checks if the modifier associated with the applicator is contained in the bag.
@@ -1125,7 +1171,9 @@ namespace StatMaster
         /// <param name="applicator">The applicator implementing ITarget<S, T>.</param>
         /// <param name="bag">The bag to check for the presence of the modifier.</param>
         /// <returns>True if the modifier is contained in the bag, otherwise false.</returns>
-        public static bool ContainedInBag<S, T>(this ITarget<S, T> applicator, S bag) =>
-            applicator.AppliesTo(bag).Modifiers.Contains(applicator.Modifier);
+        public static bool ContainedInBag<S, T>(this ITarget<S, T> applicator, S bag)
+        {
+            return applicator.AppliesTo(bag).Modifiers.Contains(applicator.Modifier);
+        }
     }
 }

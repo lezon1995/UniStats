@@ -47,8 +47,7 @@ namespace StatMaster
         /// Represents a character stat that can be modified.
         /// </summary>
         /// <param name="initialValue">The initial value of the character stat.</param>
-        public CharacterStat(T initialValue)
-            : base(initialValue)
+        public CharacterStat(T initialValue) : base(initialValue)
         {
             BaseFlatPlus = new ModifiableValue<T>();
             BasePlus = new ModifiableValue<T>();
@@ -62,7 +61,7 @@ namespace StatMaster
         /// <summary>
         /// Initializes the modifiers for the character stat.
         /// </summary>
-        private void InitializeModifiers()
+        void InitializeModifiers()
         {
             Modifiers.Add(100, Modifier.Plus(BaseFlatPlus));
             Modifiers.Add(200, Modifier.Times(BaseTimes));
@@ -77,7 +76,7 @@ namespace StatMaster
         /// Returns the value "one" of type T.
         /// </summary>
         /// <returns>The value "one" of type T.</returns>
-        private static T One()
+        static T One()
         {
 #if NET7_0_OR_GREATER
             return T.One;

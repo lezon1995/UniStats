@@ -4,6 +4,7 @@ using System.Text;
 using System.ComponentModel;
 using System.Collections;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace StatMaster
 {
@@ -16,19 +17,22 @@ namespace StatMaster
         /// <param name="modifiable">The modifiable value.</param>
         /// <param name="modifier">The modifier to probe.</param>
         /// <returns>An enumerable of before and after values.</returns>
-        public static IEnumerable<(T before, T after)> ProbeAffects<T>(
-            this IModifiable<IReadOnlyValue<T>, T> modifiable,
-            IModifier<T> modifier
-        )
+        public static IEnumerable<(T before, T after)> ProbeAffects<T>(this IModifiable<IReadOnlyValue<T>, T> modifiable, IModifier<T> modifier)
         {
             T before = modifiable.Initial.Value;
             foreach (var _modifier in modifiable.Modifiers)
             {
                 T after = before;
                 if (_modifier.Enabled)
+                {
                     after = _modifier.Modify(before);
+                }
+
                 if (modifier == _modifier)
+                {
                     yield return (before, after);
+                }
+
                 before = after;
             }
         }
@@ -41,15 +45,14 @@ namespace StatMaster
         /// <param name="modifiable">The modifiable value.</param>
         /// <param name="modifier">The modifier to probe.</param>
         /// <returns>The accumulated delta.</returns>
-        public static T ProbeDelta<T>(
-            this IModifiable<IReadOnlyValue<T>, T> modifiable,
-            IModifier<T> modifier
-        )
-            where T : INumber<T>
+        public static T ProbeDelta<T>(this IModifiable<IReadOnlyValue<T>, T> modifiable, IModifier<T> modifier) where T : INumber<T>
         {
             T accum = T.Zero;
             foreach (T delta in modifiable.ProbeAffects(modifier).Select(x => x.after - x.before))
+            {
                 accum += delta;
+            }
+
             return accum;
         }
 #else
@@ -81,38 +84,44 @@ namespace StatMaster
         {
             int count = 0;
             while (collection.Remove(item))
+            {
                 count++;
+            }
+
             return count;
         }
     }
 
-#if UNITY_5_3_OR_NEWER
+// #if UNITY_5_3_OR_NEWER
     /**
      * In order to make Unity's serialization work properly, we need to have a concrete type
      * rather than an interface as the initial value.
      */
     [Serializable]
-    public class ModifiableValue<T> : Modifiable<PropertyValue<T>, T>, IModifiableValue<T>
+    public class UnityModifiableValue<T> : Modifiable<PropertyValue<T>, T>, IModifiableValue<T>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial value.</param>
-        public ModifiableValue(PropertyValue<T> initial)
-            : base(initial) { }
+        public UnityModifiableValue(PropertyValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableValue(T initialValue)
-            : base(new PropertyValue<T>(initialValue)) { }
+        public UnityModifiableValue(T initialValue) : base(new PropertyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
-        public ModifiableValue()
-            : this(default(T)) { }
+        public UnityModifiableValue() : this(default(T))
+        {
+        }
 
         IValue<T> IModifiable<IValue<T>, T>.Initial => _initial;
     }
@@ -122,27 +131,30 @@ namespace StatMaster
     /// </summary>
     /// <typeparam name="T">The type of the value.</typeparam>
     [Serializable]
-    public class ModifiableReadOnlyValue<T> : Modifiable<ReadOnlyValue<T>, T>
+    public class UnityModifiableReadOnlyValue<T> : Modifiable<ReadOnlyValue<T>, T>
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial read-only value.</param>
-        public ModifiableReadOnlyValue(ReadOnlyValue<T> initial)
-            : base(initial) { }
+        public UnityModifiableReadOnlyValue(ReadOnlyValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableReadOnlyValue(T initialValue)
-            : base(new ReadOnlyValue<T>(initialValue)) { }
+        public UnityModifiableReadOnlyValue(T initialValue) : base(new ReadOnlyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
-        public ModifiableReadOnlyValue()
-            : this(default(T)) { }
+        public UnityModifiableReadOnlyValue() : this(default(T))
+        {
+        }
     }
 
     /// <summary>
@@ -155,21 +167,24 @@ namespace StatMaster
         /// Initializes a new instance of the <see cref="ModifiableIValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial value.</param>
-        public ModifiableIValue(IValue<T> initial)
-            : base(initial) { }
+        public ModifiableIValue(IValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableIValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableIValue(T initialValue)
-            : base(new PropertyValue<T>(initialValue)) { }
+        public ModifiableIValue(T initialValue) : base(new PropertyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableIValue{T}"/> class.
         /// </summary>
-        public ModifiableIValue()
-            : this(default(T)) { }
+        public ModifiableIValue() : this(default(T))
+        {
+        }
     }
 
     /// <summary>
@@ -182,23 +197,26 @@ namespace StatMaster
         /// Initializes a new instance of the <see cref="ModifiableIReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial value.</param>
-        public ModifiableIReadOnlyValue(IReadOnlyValue<T> initial)
-            : base(initial) { }
+        public ModifiableIReadOnlyValue(IReadOnlyValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableIReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableIReadOnlyValue(T initialValue)
-            : base(new ReadOnlyValue<T>(initialValue)) { }
+        public ModifiableIReadOnlyValue(T initialValue) : base(new ReadOnlyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableIReadOnlyValue{T}"/> class.
         /// </summary>
-        public ModifiableIReadOnlyValue()
-            : this(default(T)) { }
+        public ModifiableIReadOnlyValue() : this(default(T))
+        {
+        }
     }
-#else
+// #else
 
     /// <summary>
     /// Represents a modifiable value implementing the <see cref="IValue{T}"/> interface.
@@ -211,21 +229,24 @@ namespace StatMaster
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial value.</param>
-        public ModifiableValue(IValue<T> initial)
-            : base(initial) { }
+        public ModifiableValue(IValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableValue(T initialValue)
-            : base(new PropertyValue<T>(initialValue)) { }
+        public ModifiableValue(T initialValue) : base(new PropertyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableValue{T}"/> class.
         /// </summary>
-        public ModifiableValue()
-            : this(default(T)) { }
+        public ModifiableValue() : this(default(T))
+        {
+        }
     }
 
     /// <summary>
@@ -239,23 +260,26 @@ namespace StatMaster
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initial">The initial value.</param>
-        public ModifiableReadOnlyValue(IReadOnlyValue<T> initial)
-            : base(initial) { }
+        public ModifiableReadOnlyValue(IReadOnlyValue<T> initial) : base(initial)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
         /// <param name="initialValue">The initial value.</param>
-        public ModifiableReadOnlyValue(T initialValue)
-            : base(new ReadOnlyValue<T>(initialValue)) { }
+        public ModifiableReadOnlyValue(T initialValue) : base(new ReadOnlyValue<T>(initialValue))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ModifiableReadOnlyValue{T}"/> class.
         /// </summary>
-        public ModifiableReadOnlyValue()
-            : this(default(T)) { }
+        public ModifiableReadOnlyValue() : this(default(T))
+        {
+        }
     }
-#endif
+// #endif
 
     /// <summary>
     /// Represents a modifiable value with bounds implementing the <see cref="IBounded{T}"/> interface.
@@ -263,14 +287,13 @@ namespace StatMaster
     /// <typeparam name="S">The type of the initial value.</typeparam>
     /// <typeparam name="T">The type of the value.</typeparam>
     [Serializable]
-    public class BoundedModifiable<S, T> : Modifiable<S, T>, IBounded<T>
-        where S : IReadOnlyValue<T>
+    public class BoundedModifiable<S, T> : Modifiable<S, T>, IBounded<T> where S : IReadOnlyValue<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
 #endif
     {
-        private readonly IReadOnlyValue<T> _minValue;
-        private readonly IReadOnlyValue<T> _maxValue;
+        readonly IReadOnlyValue<T> _minValue;
+        readonly IReadOnlyValue<T> _maxValue;
 
         /// <summary>
         /// Gets the minimum value.
@@ -288,8 +311,7 @@ namespace StatMaster
         /// <param name="initial">The initial value.</param>
         /// <param name="minValue">The minimum value.</param>
         /// <param name="maxValue">The maximum value.</param>
-        public BoundedModifiable(S initial, IReadOnlyValue<T> minValue, IReadOnlyValue<T> maxValue)
-            : base(initial)
+        public BoundedModifiable(S initial, IReadOnlyValue<T> minValue, IReadOnlyValue<T> maxValue) : base(initial)
         {
             _minValue = minValue ?? throw new ArgumentNullException(nameof(minValue));
             _maxValue = maxValue ?? throw new ArgumentNullException(nameof(maxValue));
@@ -301,8 +323,9 @@ namespace StatMaster
         /// <param name="value">The initial value.</param>
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
-        public BoundedModifiable(S value, T lowerBound, IReadOnlyValue<T> upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), upperBound) { }
+        public BoundedModifiable(S value, T lowerBound, IReadOnlyValue<T> upperBound) : this(value, new ReadOnlyValue<T>(lowerBound), upperBound)
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BoundedModifiable{S, T}"/> class with the specified initial value, lower bound, and upper bound.
@@ -310,8 +333,9 @@ namespace StatMaster
         /// <param name="value">The initial value.</param>
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
-        public BoundedModifiable(S value, IReadOnlyValue<T> lowerBound, T upperBound)
-            : this(value, lowerBound, new ReadOnlyValue<T>(upperBound)) { }
+        public BoundedModifiable(S value, IReadOnlyValue<T> lowerBound, T upperBound) : this(value, lowerBound, new ReadOnlyValue<T>(upperBound))
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BoundedModifiable{S, T}"/> class with the specified initial value, lower bound, and upper bound.
@@ -319,8 +343,9 @@ namespace StatMaster
         /// <param name="value">The initial value.</param>
         /// <param name="lowerBound">The lower bound.</param>
         /// <param name="upperBound">The upper bound.</param>
-        public BoundedModifiable(S value, T lowerBound, T upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), new ReadOnlyValue<T>(upperBound)) { }
+        public BoundedModifiable(S value, T lowerBound, T upperBound) : this(value, new ReadOnlyValue<T>(lowerBound), new ReadOnlyValue<T>(upperBound))
+        {
+        }
 
         /// <summary>
         /// Gets the bounded value by clamping the base value within the specified bounds.
@@ -334,8 +359,7 @@ namespace StatMaster
     /// <typeparam name="S">The type of the initial value.</typeparam>
     /// <typeparam name="T">The type of the value.</typeparam>
     [Serializable]
-    public class Modifiable<S, T> : IModifiable<S, T>
-        where S : IReadOnlyValue<T>
+    public class Modifiable<S, T> : IModifiable<S, T> where S : IReadOnlyValue<T>
     {
         protected ModifiersSortedList _modifiers;
 
@@ -357,12 +381,12 @@ namespace StatMaster
         /// <summary>
         /// This value is only updated if the value needs to be recomputed
         /// </summary>
-        private T _cachedValue;
+        T _cachedValue;
 
         /// <summary>
         /// ///  Flag to track if the value needs to be recomputed
         /// </summary>
-        private bool _valueNeedsUpdate = true;
+        bool _valueNeedsUpdate = true;
 
         /// <summary>
         /// Gets the current value after applying modifiers.
@@ -384,8 +408,7 @@ namespace StatMaster
         [field: NonSerialized]
         public event PropertyChangedEventHandler PropertyChanged;
 
-        private static readonly PropertyChangedEventArgs modifiersEventArgs =
-            new PropertyChangedEventArgs(nameof(Modifiers));
+        static readonly PropertyChangedEventArgs modifiersEventArgs = new PropertyChangedEventArgs(nameof(Modifiers));
 
         public Modifiable(S initial)
         {
@@ -445,7 +468,7 @@ namespace StatMaster
             return builder.ToString();
         }
 
-        private T ComputeValue()
+        T ComputeValue()
         {
             T v = Initial.Value;
             foreach (var modifier in Modifiers)
@@ -455,6 +478,7 @@ namespace StatMaster
                     v = modifier.Modify(v);
                 }
             }
+
             return v;
         }
 
@@ -468,18 +492,17 @@ namespace StatMaster
         /// ordered by priority first and age second. Each modifier will have a unique
         /// age ensuring that the keys will be unique.
         /// </remarks>
-        protected class ModifiersSortedList
-            : IPriorityCollection<IModifier<T>>,
-                IComparer<(int priority, int age)>
+        protected class ModifiersSortedList : IPriorityCollection<IModifier<T>>, IComparer<(int priority, int age)>
         {
-            private readonly Modifiable<S, T> _parent;
-            private readonly SortedList<(int priority, int age), IModifier<T>> _modifiers =
-                new SortedList<(int priority, int age), IModifier<T>>();
-            private int _addCount = 0;
+            Modifiable<S, T> _parent;
+            SortedList<(int priority, int age), IModifier<T>> _modifiers;
+            int _addCount;
 
             public ModifiersSortedList(Modifiable<S, T> parent)
             {
                 _parent = parent;
+                _modifiers = new SortedList<(int priority, int age), IModifier<T>>();
+                _addCount = 0;
             }
 
             public IEnumerator<IModifier<T>> GetEnumerator()
@@ -551,6 +574,7 @@ namespace StatMaster
                 {
                     return result;
                 }
+
                 return x.age.CompareTo(y.age);
             }
         }
