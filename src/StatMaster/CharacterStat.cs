@@ -5,69 +5,38 @@ using System.Numerics;
 namespace StatMaster
 {
     /// <summary>
-    /// Represents a character stat that can be modified.
-    /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
+    /// Represents a stat that can be modified.
+    /// Value = ((Initial + InitialPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
     /// </summary>
-    public class CharacterStat<T> : ModifiableValue<T>
+    public class Stat<T> : ModValue<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
 #endif
     {
-        /// <summary>
-        /// An additional value added to the base value.
-        /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
-        /// </summary>
-        public IModifiableValue<T> BaseFlatPlus { get; }
+        public IModValue<T> InitialPlus { get; }
+        public IModValue<T> BasePlus { get; }
+        public IModValue<T> BaseTimes { get; }
+        public IModValue<T> TotalPlus { get; }
+        public IModValue<T> TotalTimes { get; }
 
-        /// <summary>
-        /// An additional value added to the result after applying BaseTimes.
-        /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
-        /// </summary>
-        public IModifiableValue<T> BasePlus { get; }
-
-        /// <summary>
-        /// A multiplier applied to the base value.
-        /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
-        /// </summary>
-        public IModifiableValue<T> BaseTimes { get; }
-
-        /// <summary>
-        /// An additional value added to the final result.
-        /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
-        /// </summary>
-        public IModifiableValue<T> TotalPlus { get; }
-
-        /// <summary>
-        /// Another multiplier applied to the result of BaseTimes and BasePlus.
-        /// Value = ((baseValue + BaseFlatPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
-        /// </summary>
-        public IModifiableValue<T> TotalTimes { get; }
-
-        /// <summary>
-        /// Represents a character stat that can be modified.
-        /// </summary>
-        /// <param name="initialValue">The initial value of the character stat.</param>
-        public CharacterStat(T initialValue) : base(initialValue)
+        public Stat(T initial) : base(initial)
         {
-            BaseFlatPlus = new ModifiableValue<T>();
-            BasePlus = new ModifiableValue<T>();
-            BaseTimes = new ModifiableValue<T>(One());
-            TotalPlus = new ModifiableValue<T>();
-            TotalTimes = new ModifiableValue<T>(One());
+            InitialPlus = new ModValue<T>();
+            BasePlus = new ModValue<T>();
+            BaseTimes = new ModValue<T>(One());
+            TotalPlus = new ModValue<T>();
+            TotalTimes = new ModValue<T>(One());
 
             InitializeModifiers();
         }
 
-        /// <summary>
-        /// Initializes the modifiers for the character stat.
-        /// </summary>
         void InitializeModifiers()
         {
-            Modifiers.Add(100, Modifier.Plus(BaseFlatPlus));
-            Modifiers.Add(200, Modifier.Times(BaseTimes));
-            Modifiers.Add(300, Modifier.Plus(BasePlus));
-            Modifiers.Add(400, Modifier.Times(TotalTimes));
-            Modifiers.Add(500, Modifier.Plus(TotalPlus));
+            Add(100, Mod.Add(InitialPlus));
+            Add(200, Mod.Mul(BaseTimes));
+            Add(300, Mod.Add(BasePlus));
+            Add(400, Mod.Mul(TotalTimes));
+            Add(500, Mod.Add(TotalPlus));
         }
 
         #region Utility Methods
@@ -81,7 +50,7 @@ namespace StatMaster
 #if NET7_0_OR_GREATER
             return T.One;
 #else
-            return Modifier.GetOperator<T>().One;
+            return Mod.GetOperator<T>().One;
 #endif
         }
 

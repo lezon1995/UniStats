@@ -1,203 +1,178 @@
-using System.ComponentModel;
 using System.Numerics;
 
 namespace StatMaster
 {
-    /// <summary>
-    /// Represents a property value that can be observed for changes.
-    /// </summary>
-    /// <typeparam name="T">The type of the property value.</typeparam>
     [Serializable]
-    public class PropertyValue<T> : IValue<T>
+    public partial class Property<T> : IValue<T>
     {
+        public event ChangeHandler<T> OnChanged;
+
 #if UNITY_5_3_OR_NEWER
         [UnityEngine.SerializeField]
 #endif
-        protected T _value;
+        T _value;
 
         public virtual T Value
         {
             get => _value;
             set
             {
-                _value = value;
-                PropertyChanged?.Invoke(this, valueEventArgs);
+                if (!_value.Equals(value))
+                {
+                    var pre = _value;
+                    _value = value;
+                    OnChanged?.Invoke(pre, value);
+                }
             }
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PropertyValue{T}"/> class.
-        /// </summary>
-        public PropertyValue()
+        public Property()
         {
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="PropertyValue{T}"/> class with the specified initial value.
-        /// </summary>
-        /// <param name="value">The initial value of the property.</param>
-        public PropertyValue(T value)
+        public Property(T value)
         {
             _value = value;
         }
 
-        /// <summary>
-        /// Event that is raised when the value of the property changes.
-        /// </summary>
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        /// <summary>
-        /// This is more costly: OnChange(nameof(value)). So let's just do this.
-        /// </summary>
-        static PropertyChangedEventArgs valueEventArgs = new PropertyChangedEventArgs(nameof(Value));
-
-        /// <summary>
-        /// Raises the PropertyChanged event with the provided property name.
-        /// </summary>
-        /// <param name="propertyName">The name of the property that has changed.</param>
-        protected virtual void OnChange(string propertyName)
+        public void OnRelease()
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            _value = default;
+            OnChanged = null;
         }
     }
 
-    /// <summary>
-    /// A utility class for creating read-only values that can notify listeners when their value changes.
-    /// </summary>
-    public static class ReadOnlyValue
+    public partial class Property<T>
     {
-        /// <summary>
-        /// Creates a new instance of <see cref="IReadOnlyValue{T}"/> using the provided value getter function.
-        /// </summary>
-        /// <typeparam name="T">The type of the value.</typeparam>
-        /// <param name="valueGetter">The function that retrieves the value.</param>
-        /// <param name="onChange">The action to call when the value changes.</param>
-        /// <returns>The created <see cref="IReadOnlyValue{T}"/> instance.</returns>
-        public static IReadOnlyValue<T> Create<T>(Func<T> valueGetter, out Action onChange)
-        {
-            return new DerivedReadOnlyValue<T>(valueGetter, out onChange);
-        }
+        static Queue<Property<T>> pool = new Queue<Property<T>>();
 
-        /// <summary>
-        /// Creates a new instance of <see cref="IReadOnlyValue{T}"/> using the provided value getter function.
-        /// </summary>
-        /// <typeparam name="T">The type of the value.</typeparam>
-        /// <param name="valueGetter">The function that retrieves the value.</param>
-        /// <returns>The created <see cref="IReadOnlyValue{T}"/> instance.</returns>
-        public static IReadOnlyValue<T> Create<T>(Func<T> f)
+        public static Property<T> Get(T initial = default)
         {
-            return new DerivedReadOnlyValue<T>(f, out var onChange);
-        }
-
-        /// <summary>
-        /// Represents a derived implementation of <see cref="IReadOnlyValue{T}"/>.
-        /// </summary>
-        /// <typeparam name="T">The type of the value.</typeparam>
-        class DerivedReadOnlyValue<T> : IReadOnlyValue<T>
-        {
-            readonly Func<T> _valueGetter;
-
-            /// <summary>
-            /// Initializes a new instance of the <see cref="DerivedReadOnlyValue{T}"/> class with the specified value getter function.
-            /// </summary>
-            /// <param name="valueGetter">The function that retrieves the value.</param>
-            /// <param name="onChange">The action to call when the value changes.</param>
-            public DerivedReadOnlyValue(Func<T> valueGetter, out Action onChange)
+            if (pool.TryDequeue(out var value))
             {
-                _valueGetter = valueGetter;
-                onChange = OnChange;
+                value._value = initial;
+                return value;
             }
 
-            public T Value => _valueGetter();
+            value = new Property<T>(initial);
+            return value;
+        }
 
-            public event PropertyChangedEventHandler PropertyChanged;
+        public static void Release(Property<T> value)
+        {
+            value.OnRelease();
+            pool.Enqueue(value);
+        }
 
-            static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
-
-            /// <summary>
-            /// Raises the PropertyChanged event to notify listeners of a value change.
-            /// </summary>
-            protected virtual void OnChange() => PropertyChanged?.Invoke(this, eventArgs);
+        public void Release()
+        {
+            Release(this);
         }
     }
 
-    /// <summary>
-    /// A utility class for creating instances of <see cref="IValue{T}"/>.
-    /// </summary>
-    public static class PropertyValue
+    public static class Property
     {
-        /// <summary>
-        /// Creates an instance of <see cref="IValue{T}"/> with the provided getter and setter functions.
-        /// </summary>
-        /// <typeparam name="T">The type of the value.</typeparam>
-        /// <param name="getter">The getter function for accessing the value.</param>
-        /// <param name="setter">The setter action for modifying the value.</param>
-        /// <param name="onChange">The action to call when the value changes.</param>
-        /// <returns>An instance of <see cref="IValue{T}"/>.</returns>
-        public static IValue<T> Create<T>(Func<T> getter, Action<T> setter, out Action onChange)
+        public static IValue<T> Create<T>(Func<T> getter, out ChangeHandler<T> onChange)
         {
-            return new DerivedValue<T>(getter, setter, out onChange);
+            return DerivedValue<T>.Get(getter, out onChange);
         }
 
-        /// <summary>
-        /// An implementation of <see cref="IValue{T}"/> that encapsulates a value with customizable getter and setter functions.
-        /// </summary>
-        class DerivedValue<T> : IValue<T>
+        public static IValue<T> Create<T>(Func<T> getter, Action<T> setter, out ChangeHandler<T> onChange)
         {
-            readonly Func<T> _getter;
-            readonly Action<T> _setter;
+            return DerivedValue<T>.Get(getter, setter, out onChange);
+        }
 
-            /// <summary>
-            /// Initializes a new instance of the <see cref="DerivedValue{T}"/> class with the provided getter, setter, and callback for value changes.
-            /// </summary>
-            /// <param name="getter">The getter function for accessing the value.</param>
-            /// <param name="setter">The setter action for modifying the value.</param>
-            /// <param name="onChange">The action to call when the value changes.</param>
-            public DerivedValue(Func<T> getter, Action<T> setter, out Action onChange)
-            {
-                _getter = getter;
-                _setter = setter;
-                onChange = OnChange;
-            }
+        partial class DerivedValue<T> : IValue<T>
+        {
+            public event ChangeHandler<T> OnChanged;
+
+            public Func<T> Getter { get; internal set; }
+            public Action<T> Setter { get; internal set; }
 
             public T Value
             {
-                get => _getter();
-                set => _setter(value);
+                get => Getter();
+                set => Setter?.Invoke(value);
             }
 
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
-
-            protected void OnChange()
+            DerivedValue(Func<T> getter, out ChangeHandler<T> onChange)
             {
-                PropertyChanged?.Invoke(this, eventArgs);
+                Getter = getter;
+                Setter = null;
+                onChange = OnChange;
+            }
+
+            DerivedValue(Func<T> getter, Action<T> setter, out ChangeHandler<T> onChange)
+            {
+                Getter = getter;
+                Setter = setter;
+                onChange = OnChange;
+            }
+
+            void OnChange(T pre, T now)
+            {
+                OnChanged?.Invoke(pre, now);
+            }
+
+            public void OnRelease()
+            {
+                Getter = null;
+                Setter = null;
+                OnChanged = null;
+            }
+        }
+
+        partial class DerivedValue<T>
+        {
+            static Queue<DerivedValue<T>> pool = new Queue<DerivedValue<T>>();
+
+            public static DerivedValue<T> Get(Func<T> getter, out ChangeHandler<T> onChange)
+            {
+                if (pool.TryDequeue(out var value))
+                {
+                    value.Getter = getter;
+                    onChange = value.OnChange;
+                    return value;
+                }
+
+                value = new DerivedValue<T>(getter, out onChange);
+                return value;
+            }
+
+            public static DerivedValue<T> Get(Func<T> getter, Action<T> setter, out ChangeHandler<T> onChange)
+            {
+                if (pool.TryDequeue(out var value))
+                {
+                    value.Getter = getter;
+                    value.Setter = setter;
+                    onChange = value.OnChange;
+                    return value;
+                }
+
+                value = new DerivedValue<T>(getter, setter, out onChange);
+                return value;
+            }
+
+            static void Release(DerivedValue<T> value)
+            {
+                value.OnRelease();
+                pool.Enqueue(value);
+            }
+
+            public void Release()
+            {
+                Release(this);
             }
         }
     }
 
-    /// <summary>
-    /// Represents an <see cref="IValue{T}"/> that respects bounds.
-    /// </summary>
-    /// <remarks>
-    /// If bounds change impinge on this object's current value, that value will change.
-    /// Why no BoundedReadOnlyValue<T>? It's not truly needed. With a read only
-    /// value, one only needs to clamp it for instance, a simple projection will do:
-    /// ```var boundedValue = readOnlyValue.Select(x => Math.Clamp(x, 0f, myMax.value));```
-    /// A special implementation is required for IValue<T> because it can be set,
-    /// and although one can always clamp it's output as above, it won't function
-    /// correctly. For instance, if you have `health` that is 100, you subtract 120.
-    /// It will report 0. But when you add 10, it'll still report 0 because the
-    /// underlying value would actually be at -10.
-    /// </remarks>
-    /// <typeparam name="T">The type of the value.</typeparam>
     [Serializable]
-    public class BoundedValue<T> : IValue<T>, IBounded<T>
+    public partial class RangeValue<T> : IValue<T>, IRange<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
 #endif
     {
+        public event ChangeHandler<T> OnChanged;
         T _value;
 
         public T Value
@@ -205,145 +180,222 @@ namespace StatMaster
             get => _value;
             set
             {
-                _value = Clamp(value, MinValue, MaxValue);
-                OnChange();
+                var now = Clamp(value, Min, Max);
+                if (_value != now)
+                {
+                    var pre = _value;
+                    _value = now;
+                    OnChange(pre, now);
+                }
             }
         }
 
-        public T MinValue => LowerBound.Value;
-        public T MaxValue => UpperBound.Value;
+        public T Min => Lower.Value;
+        public T Max => Upper.Value;
 
-        public readonly IReadOnlyValue<T> LowerBound;
-        public readonly IReadOnlyValue<T> UpperBound;
+        public IValue<T> Lower;
+        public IValue<T> Upper;
 
-        public static T Clamp(T value, T minValue, T maxValue)
+        public static T Clamp(T value, T min, T max)
         {
 #if NET7_0_OR_GREATER
-            if (value < minValue)
+            if (value < min)
             {
-                value = minValue;
+                value = min;
             }
 
-            if (value > maxValue)
+            if (value > max)
             {
-                value = maxValue;
+                value = max;
             }
 
             return value;
 #else
-            var op = Modifier.GetOperator<T>();
-            return op.Max(minValue, op.Min(maxValue, value));
+            var op = Mod.GetOperator<T>();
+            return op.Max(min, op.Min(max, value));
 #endif
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
-        /// </summary>
-        /// <param name="value">The initial value.</param>
-        /// <param name="lowerBound">The lower bound.</param>
-        /// <param name="upperBound">The upper bound.</param>
-        public BoundedValue(T value, IReadOnlyValue<T> lowerBound, IReadOnlyValue<T> upperBound)
+        #region Constructor
+
+        Action releaseAction;
+
+        public RangeValue(T value, IValue<T> lower, IValue<T> upper)
         {
             _value = value;
-            LowerBound = lowerBound;
-            LowerBound.PropertyChanged += BoundChanged;
-            UpperBound = upperBound;
-            UpperBound.PropertyChanged += BoundChanged;
+            Lower = lower;
+            Lower.OnChanged += BoundChanged;
+
+            Upper = upper;
+            Upper.OnChanged += BoundChanged;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
-        /// </summary>
-        /// <param name="value">The initial value.</param>
-        /// <param name="lowerBound">The lower bound.</param>
-        /// <param name="upperBound">The upper bound.</param>
-        public BoundedValue(T value, T lowerBound, IReadOnlyValue<T> upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), upperBound)
+        public RangeValue(T value, T lower, IValue<T> upper) : this(value, Property<T>.Get(lower), upper)
         {
+            releaseAction = () =>
+            {
+                //
+                Property<T>.Release((Property<T>)Lower);
+            };
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
-        /// </summary>
-        /// <param name="value">The initial value.</param>
-        /// <param name="lowerBound">The lower bound.</param>
-        /// <param name="upperBound">The upper bound.</param>
-        public BoundedValue(T value, IReadOnlyValue<T> lowerBound, T upperBound)
-            : this(value, lowerBound, new ReadOnlyValue<T>(upperBound))
+        public RangeValue(T value, IValue<T> lower, T upper) : this(value, lower, Property<T>.Get(upper))
         {
+            releaseAction = () =>
+            {
+                //
+                Property<T>.Release((Property<T>)Upper);
+            };
         }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="BoundedValue{T}"/> class with the specified value and bounds.
-        /// </summary>
-        /// <param name="value">The initial value.</param>
-        /// <param name="lowerBound">The lower bound.</param>
-        /// <param name="upperBound">The upper bound.</param>
-        public BoundedValue(T value, T lowerBound, T upperBound)
-            : this(value, new ReadOnlyValue<T>(lowerBound), new ReadOnlyValue<T>(upperBound))
+        public RangeValue(T value, T lower, T upper) : this(value, Property<T>.Get(lower), Property<T>.Get(upper))
         {
+            releaseAction = () =>
+            {
+                //
+                Property<T>.Release((Property<T>)Lower);
+                Property<T>.Release((Property<T>)Upper);
+            };
         }
 
-        void BoundChanged(object sender, PropertyChangedEventArgs e)
+        #endregion
+
+        void BoundChanged(T pre, T now)
         {
             Value = _value;
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
-
-        protected void OnChange()
+        protected void OnChange(T pre, T now)
         {
-            PropertyChanged?.Invoke(this, eventArgs);
+            OnChanged?.Invoke(pre, now);
+        }
+
+        public void OnRelease()
+        {
+            _value = default;
+
+            Lower.OnChanged -= BoundChanged;
+            Upper.OnChanged -= BoundChanged;
+
+            releaseAction?.Invoke();
+            releaseAction = null;
+
+            Lower = null;
+            Upper = null;
+
+            OnChanged = null;
         }
     }
 
-    /// <summary>
-    /// Represents a simple read-only value of type T.
-    /// </summary>
-    /// <typeparam name="T">The type of the value.</typeparam>
-    [Serializable]
-    public class ReadOnlyValue<T> : IReadOnlyValue<T>
+    public partial class RangeValue<T>
     {
-#if UNITY_5_3_OR_NEWER
-        [UnityEngine.SerializeField]
-#endif
-        readonly T _value;
+        static Queue<RangeValue<T>> pool = new Queue<RangeValue<T>>();
 
-        public T Value => _value;
-
-        /// <summary>
-        /// Initializes a new instance of the ReadOnlyValue class with the specified value.
-        /// </summary>
-        /// <param name="value">The value to be encapsulated.</param>
-        public ReadOnlyValue(T value)
+        public static RangeValue<T> Get(T initial, IValue<T> lower, IValue<T> upper)
         {
-            _value = value;
+            if (pool.TryDequeue(out var value))
+            {
+                value._value = initial;
+
+                value.Lower = lower;
+                value.Lower.OnChanged += value.BoundChanged;
+
+                value.Upper = upper;
+                value.Upper.OnChanged += value.BoundChanged;
+                return value;
+            }
+
+            value = new RangeValue<T>(initial, lower, upper);
+            return value;
         }
 
-        /// <summary>
-        /// Initializes a new instance of the ReadOnlyValue class with the specified value and action.
-        /// </summary>
-        /// <param name="value">The value to be encapsulated.</param>
-        /// <param name="onChange">The action to call when the value changes.</param>
-        public ReadOnlyValue(T value, out Action onChange) : this(value)
+        public static RangeValue<T> Get(T initial, T lower, IValue<T> upper)
         {
-            onChange = OnChange;
+            if (pool.TryDequeue(out var value))
+            {
+                value.releaseAction = () =>
+                {
+                    //
+                    Property<T>.Release((Property<T>)value.Lower);
+                };
+
+                var _lower = Property<T>.Get(lower);
+                value._value = initial;
+
+                value.Lower = _lower;
+                value.Lower.OnChanged += value.BoundChanged;
+
+                value.Upper = upper;
+                value.Upper.OnChanged += value.BoundChanged;
+                return value;
+            }
+
+            value = new RangeValue<T>(initial, lower, upper);
+            return value;
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-
-        static PropertyChangedEventArgs eventArgs = new PropertyChangedEventArgs(nameof(Value));
-
-        protected void OnChange()
+        public static RangeValue<T> Get(T initial, IValue<T> lower, T upper)
         {
-            PropertyChanged?.Invoke(this, eventArgs);
+            if (pool.TryDequeue(out var value))
+            {
+                value.releaseAction = () =>
+                {
+                    //
+                    Property<T>.Release((Property<T>)value.Upper);
+                };
+
+                var _upper = Property<T>.Get(upper);
+                value._value = initial;
+
+                value.Lower = lower;
+                value.Lower.OnChanged += value.BoundChanged;
+
+                value.Upper = _upper;
+                value.Upper.OnChanged += value.BoundChanged;
+                return value;
+            }
+
+            value = new RangeValue<T>(initial, lower, upper);
+            return value;
         }
 
-        public override string ToString()
+        public static RangeValue<T> Get(T initial, T lower, T upper)
         {
-            return Value.ToString();
+            if (pool.TryDequeue(out var value))
+            {
+                value.releaseAction = () =>
+                {
+                    //
+                    Property<T>.Release((Property<T>)value.Lower);
+                    Property<T>.Release((Property<T>)value.Upper);
+                };
+
+                var _lower = Property<T>.Get(lower);
+                var _upper = Property<T>.Get(upper);
+
+                value._value = initial;
+
+                value.Lower = _lower;
+                value.Lower.OnChanged += value.BoundChanged;
+
+                value.Upper = _upper;
+                value.Upper.OnChanged += value.BoundChanged;
+                return value;
+            }
+
+            value = new RangeValue<T>(initial, lower, upper);
+            return value;
+        }
+
+        public static void Release(RangeValue<T> value)
+        {
+            value.OnRelease();
+            pool.Enqueue(value);
+        }
+
+        public void Release()
+        {
+            Release(this);
         }
     }
 }

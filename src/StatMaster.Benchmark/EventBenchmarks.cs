@@ -24,17 +24,13 @@ namespace StatMaster.Benchmarks
      */
     public class EventBenchmarks
     {
-        IValue<int> a = new PropertyValue<int>(0);
-        IReadOnlyValue<int> b;
-        IReadOnlyValue<int> c;
+        IValue<int> a = new Property<int>(0);
+        IValue<int> b;
+        IValue<int> c;
         static PropertyChangedEventArgs args = new PropertyChangedEventArgs(nameof(a));
         static PropertyChangedEventArgs argsB = new PropertyChangedEventArgs(nameof(b));
-        Dictionary<string, PropertyChangedEventArgs> cache =
-            new Dictionary<string, PropertyChangedEventArgs>();
-        Dictionary<string, PropertyChangedEventArgs> readOnlyCache = new Dictionary<
-            string,
-            PropertyChangedEventArgs
-        >(10);
+        Dictionary<string, PropertyChangedEventArgs> cache = new Dictionary<string, PropertyChangedEventArgs>();
+        Dictionary<string, PropertyChangedEventArgs> readOnlyCache = new Dictionary<string, PropertyChangedEventArgs>(10);
 
         public EventBenchmarks()
         {
@@ -44,18 +40,23 @@ namespace StatMaster.Benchmarks
 
         PropertyChangedEventArgs GetReadOnlyDictCached(string name)
         {
-            if (readOnlyCache.TryGetValue(name, out var args))
-                return args;
-            else
-                return new PropertyChangedEventArgs(name);
+            if (readOnlyCache.TryGetValue(name, out var eventArgs))
+            {
+                return eventArgs;
+            }
+
+            return new PropertyChangedEventArgs(name);
         }
 
         PropertyChangedEventArgs GetDictCached(string name)
         {
-            PropertyChangedEventArgs args;
-            if (!cache.TryGetValue(name, out args))
-                cache[name] = args = new PropertyChangedEventArgs(name);
-            return args;
+            if (cache.TryGetValue(name, out var eventArgs))
+            {
+                return eventArgs;
+            }
+
+            cache[name] = eventArgs = new PropertyChangedEventArgs(name);
+            return eventArgs;
         }
 
         PropertyChangedEventArgs GetOneCached(string name)
@@ -65,11 +66,12 @@ namespace StatMaster.Benchmarks
 
         PropertyChangedEventArgs GetTwoCached(string name)
         {
-            return name == nameof(a)
-                ? args
-                : name == nameof(b)
-                    ? argsB
-                    : new PropertyChangedEventArgs(name);
+            return name switch
+            {
+                nameof(a) => args,
+                nameof(b) => argsB,
+                _ => new PropertyChangedEventArgs(name)
+            };
         }
 
         [Benchmark]
@@ -85,12 +87,10 @@ namespace StatMaster.Benchmarks
         public PropertyChangedEventArgs DictCachedEventArgsB() => GetDictCached(nameof(b));
 
         [Benchmark]
-        public PropertyChangedEventArgs ReadOnlyDictCachedEventArgsA() =>
-            GetReadOnlyDictCached(nameof(a));
+        public PropertyChangedEventArgs ReadOnlyDictCachedEventArgsA() => GetReadOnlyDictCached(nameof(a));
 
         [Benchmark]
-        public PropertyChangedEventArgs ReadOnlyDictCachedEventArgsB() =>
-            GetReadOnlyDictCached(nameof(b));
+        public PropertyChangedEventArgs ReadOnlyDictCachedEventArgsB() => GetReadOnlyDictCached(nameof(b));
 
         [Benchmark]
         public PropertyChangedEventArgs ConditionalStaticEventArgsA() => GetOneCached(nameof(a));

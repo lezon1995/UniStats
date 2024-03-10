@@ -1,5 +1,3 @@
-using StatMaster;
-
 namespace StatMaster.Tests
 {
     public class ReadmeTests
@@ -8,14 +6,14 @@ namespace StatMaster.Tests
         public void Health_Modification_Test()
         {
             // Arrange
-            var health = new ModifiableValue<float>(100f);
+            var health = new ModValue<float>(100f);
 
             // Assert initial health value
             Assert.Equal(100f, health.Value);
 
             // Act - Apply modifiers
-            health.Modifiers.Add(Modifier.Times(1.10f));
-            health.Modifiers.Add(Modifier.Plus(5f, "+5 health"));
+            health.Add(Mod.Mul(1.10f));
+            health.Add(Mod.Add(5f, "+5 health"));
 
             // Assert modified health value
             Assert.Equal(115f, health.Value);
@@ -25,17 +23,17 @@ namespace StatMaster.Tests
         public void Damage_Modification_Test()
         {
             // Arrange
-            var damage = new ModifiableValue<float>(10f);
+            var damage = new ModValue<float>(10f);
             int notificationCount = 0;
-            damage.PropertyChanged += (_, _) => notificationCount++;
+            damage.OnChanged += (_, _) => notificationCount++;
 
             // Assert initial damage value and notification count
             Assert.Equal(10f, damage.Value);
             Assert.Equal(0, notificationCount);
 
             // Act - Apply modifiers
-            damage.Modifiers.Add(Modifier.Times(1.50f));
-            damage.Modifiers.Add(Modifier.Plus(3f, "+3 damage"));
+            damage.Add(Mod.Mul(1.50f));
+            damage.Add(Mod.Add(3f, "+3 damage"));
 
             // Assert modified damage value and notification count
             Assert.Equal(18f, damage.Value);
@@ -46,10 +44,10 @@ namespace StatMaster.Tests
         public void Health_Bounds_Test()
         {
             // Arrange
-            var maxHealth = new ModifiableValue<float>(100f);
-            var health = new BoundedValue<float>(maxHealth.Value, 0f, maxHealth);
+            var maxHealth = new ModValue<float>(100f);
+            var health = new RangeValue<float>(maxHealth.Value, 0f, maxHealth);
             int notificationCount = 0;
-            health.PropertyChanged += (_, _) => notificationCount++;
+            health.OnChanged += (_, _) => notificationCount++;
 
             // Assert initial health and notification count
             Assert.Equal(0, notificationCount);
@@ -58,7 +56,7 @@ namespace StatMaster.Tests
 
             // Act - Modify health
             health.Value -= 10f;
-            maxHealth.Modifiers.Add(Modifier.Plus(20f, "+20 level gain"));
+            maxHealth.Add(Mod.Add(20f, "+20 level gain"));
 
             // Assert modified health and maxHealth
             Assert.Equal(90f, health.Value);
@@ -69,17 +67,17 @@ namespace StatMaster.Tests
         public void Health_Calculation_Test()
         {
             // Arrange
-            var constitution = new ModifiableValue<int>(10);
+            var constitution = new ModValue<int>(10);
             int level = 10;
             var hpAdjustment = constitution.Select(
                 con => (float)Math.Round((con - 10f) / 3f) * level
             );
-            var maxHealth = new ModifiableValue<float>(100f);
+            var maxHealth = new ModValue<float>(100f);
             int notificationCount = 0;
-            maxHealth.PropertyChanged += (_, _) => notificationCount++;
+            maxHealth.OnChanged += (_, _) => notificationCount++;
 
             // Act - Apply modifiers
-            maxHealth.Modifiers.Add(Modifier.Plus(hpAdjustment));
+            maxHealth.Add(Mod.Add(hpAdjustment));
 
             // Assert initial max health and notification count
             Assert.Equal(100f, maxHealth.Value);
@@ -97,18 +95,15 @@ namespace StatMaster.Tests
         public void Constitution_WithZip_Test()
         {
             // Arrange
-            var constitution = new ModifiableValue<int>(10);
-            var level = new PropertyValue<int>(10);
-            var hpAdjustment = constitution.Zip(
-                level,
-                (con, lev) => (float)Math.Round((con - 10f) / 3f) * lev
-            );
-            var maxHealth = new ModifiableValue<float>(100f);
+            var constitution = new ModValue<int>(10);
+            var level = new Property<int>(10);
+            var hpAdjustment = constitution.Zip(level, (_constitution, _level) => (float)Math.Round((_constitution - 10f) / 3f) * _level);
+            var maxHealth = new ModValue<float>(100f);
             int notificationCount = 0;
-            maxHealth.PropertyChanged += (_, _) => notificationCount++;
+            maxHealth.OnChanged += (_, _) => notificationCount++;
 
             // Act - Apply modifiers
-            maxHealth.Modifiers.Add(Modifier.Plus(hpAdjustment));
+            maxHealth.Add(Mod.Add(hpAdjustment));
 
             // Assert initial max health and notification count
             Assert.Equal(100f, maxHealth.Value);
