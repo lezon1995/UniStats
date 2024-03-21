@@ -1,3 +1,6 @@
+#if UNITY_5_3_OR_NEWER
+using System;
+
 namespace StatMaster.Unity
 {
     [Serializable]
@@ -32,3 +35,4 @@ namespace StatMaster.Unity
         }
     }
 }
+#endif

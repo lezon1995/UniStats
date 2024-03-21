@@ -1,10 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Text;
 #if NET7_0_OR_GREATER
 using System.Numerics;
-#endif
-
-#if UNITY_5_3_OR_NEWER
-using UnityEngine;
 #endif
 
 namespace StatMaster
@@ -175,21 +173,15 @@ namespace StatMaster
         {
             var t = Mod.GetOperator<T>();
             T v = Context.Value;
-            switch (Symbol)
+            return Op switch
             {
-                case '+':
-                    return t.Sum(given, v);
-                case '-':
-                    return t.Sum(given, t.Negate(v));
-                case '*':
-                    return t.Times(given, v);
-                case '/':
-                    return t.Divide(given, v);
-                case '=':
-                    return v;
-                default:
-                    throw new NotImplementedException("Unsupported symbol: " + Symbol);
-            }
+                Operator.Add => t.Sum(given, v),
+                Operator.Subtract => t.Sum(given, t.Negate(v)),
+                Operator.Multiply => t.Times(given, v),
+                Operator.Divide => t.Divide(given, v),
+                Operator.Set => v,
+                _ => given
+            };
         }
 #endif
 
@@ -360,8 +352,8 @@ namespace StatMaster
 #else
         public override T Modify(T given)
         {
-            var s = GetOperator<S>();
-            var t = GetOperator<T>();
+            var s = Mod.GetOperator<S>();
+            var t = Mod.GetOperator<T>();
             return t.Create(Context.Modify(s.Create(given)));
         }
 #endif

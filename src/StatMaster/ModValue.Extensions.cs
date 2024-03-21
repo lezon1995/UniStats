@@ -1,4 +1,6 @@
-﻿using System.Numerics;
+﻿using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
 
 namespace StatMaster
 {
@@ -52,13 +54,13 @@ namespace StatMaster
             return accum;
         }
 #else
-        public static T ProbeDelta<T>(this IModifiable<IValue<T>, T> modifiable,IModifier<T> modifier)
+        public static T ProbeDelta<T>(this IModValue<IValue<T>, T> modValue, IMod<T> mod)
         {
             var op = Mod.GetOperator<T>();
             T accum = op.Zero;
             foreach (
-                var delta in modifiable
-                    .ProbeAffects(modifier)
+                var delta in modValue
+                    .ProbeAffects(mod)
                     .Select(x => op.Sum(x.after, op.Negate(x.before)))
             )
                 accum = op.Sum(accum, delta);

@@ -1,4 +1,6 @@
+using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
@@ -203,7 +205,7 @@ namespace StatMaster
 
             public IMod<T> this[int index]
             {
-                get { return _mods.GetValueAtIndex(index); }
+                get { return _mods.Values[index]; }
             }
 
             public IEnumerator<IMod<T>> GetEnumerator()

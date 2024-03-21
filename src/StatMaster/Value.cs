@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Numerics;
 
 namespace StatMaster
@@ -181,7 +183,11 @@ namespace StatMaster
             set
             {
                 var now = Clamp(value, Min, Max);
+#if NET7_0_OR_GREATER
                 if (_value != now)
+#else
+                if (EqualityComparer<T>.Default.Equals(_value, now) == false)
+#endif
                 {
                     var pre = _value;
                     _value = now;

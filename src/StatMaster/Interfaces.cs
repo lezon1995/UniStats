@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace StatMaster
 {
     public delegate void ChangeHandler();

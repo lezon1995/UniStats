@@ -1,8 +1,13 @@
-﻿namespace StatMaster
+﻿using System;
+#if UNITY_5_3_OR_NEWER
+using UnityEngine;
+#endif
+
+namespace StatMaster
 {
     public static partial class Mod
     {
-#if !NET7_0_OR_GREATER
+#if UNITY_5_3_OR_NEWER
         /// <summary>
         /// Represents an operator for performing mathematical operations on a generic type.
         /// Here is the alternative to having a nice INumber<T> type like .NET7 will have.
@@ -72,7 +77,7 @@
 
             public Vector3 Sum(Vector3 a, Vector3 b) => a + b;
             public Vector3 Times(Vector3 a, Vector3 b) => Vector3.Scale(a, b);
-            public Vector3 Divide(Vector3 a, Vector3 b) =>Vector3.Scale(a, new Vector3(1f / b.x, 1f / b.y, 1f / b.z));
+            public Vector3 Divide(Vector3 a, Vector3 b) => Vector3.Scale(a, new Vector3(1f / b.x, 1f / b.y, 1f / b.z));
             public Vector3 Negate(Vector3 a) => -a;
             public Vector3 Max(Vector3 a, Vector3 b) => Vector3.Max(a, b);
             public Vector3 Min(Vector3 a, Vector3 b) => Vector3.Min(a, b);
@@ -95,8 +100,7 @@
 #if UNITY_5_3_OR_NEWER
                     if (typeof(S) == typeof(Vector3))
                         return (IOperator<S>)(object)default(OpVector3);
-                    else
-                        goto default;
+                    goto default;
 #endif
                 default:
                     throw new NotImplementedException($"No IOperator<T> implementation for type {typeof(S)}.");

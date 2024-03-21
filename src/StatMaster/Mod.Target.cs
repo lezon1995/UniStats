@@ -1,4 +1,7 @@
-﻿namespace StatMaster
+﻿using System;
+using System.Collections.Generic;
+
+namespace StatMaster
 {
     public static partial class Mod
     {
@@ -69,17 +72,17 @@
             /// <summary>
             /// Gets or sets the name of the target.
             /// </summary>
-            public string Name { get; init; }
+            public string Name { get; set; }
 
             /// <summary>
             /// Gets or sets the context of the target.
             /// </summary>
-            public R Context { get; init; }
+            public R Context { get; set; }
 
             /// <summary>
             /// Gets or sets the modifier to be applied to the value.
             /// </summary>
-            public IMod<T> Mod { get; init; }
+            public IMod<T> Mod { get; set; }
 
             /// <summary>
             /// Gets the default name of the target.
