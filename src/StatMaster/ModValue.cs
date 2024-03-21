@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
-namespace StatMaster
+namespace UniStats
 {
     [Serializable]
     public class ModValue<S, T> : IModValue<S, T> where S : IValue<T>
@@ -63,13 +63,21 @@ namespace StatMaster
         {
             if (_mods == null)
             {
-                mod.Release();
                 return false;
             }
 
-            var success = _mods.Remove(mod);
-            mod.Release();
-            return success;
+            return _mods.Remove(mod);
+        }
+
+        public bool Remove(string key)
+        {
+            if (_mods == null)
+                return false;
+
+            if (string.IsNullOrWhiteSpace(key))
+                return false;
+
+            return _mods.Remove(key);
         }
 
         public bool Contains(IMod<T> mod)
@@ -137,6 +145,7 @@ namespace StatMaster
 
         public virtual void OnRelease()
         {
+            _mods?.Clear();
             _mods = null;
             _initial = default;
             _cache = default;
@@ -231,17 +240,6 @@ namespace StatMaster
                 _parent.OnChangeModifiers();
             }
 
-            public void Clear()
-            {
-                for (var i = 0; i < _mods.Count; i++)
-                {
-                    this[i].OnChanged -= _parent.ModifiersChanged;
-                }
-
-                _mods.Clear();
-                _parent.OnChangeModifiers();
-            }
-
             public bool Contains(IMod<T> mod)
             {
                 return _mods.ContainsValue(mod);
@@ -252,6 +250,8 @@ namespace StatMaster
                 _mods.Values.CopyTo(array, arrayIndex);
             }
 
+            #region Remove
+
             public bool Remove(IMod<T> mod)
             {
                 if (mod == null)
@@ -261,11 +261,45 @@ namespace StatMaster
                 if (index < 0)
                     return false;
 
-                mod.OnChanged -= _parent.ModifiersChanged;
-                _mods.RemoveAt(index);
-                _parent.OnChangeModifiers();
+                InternalRemove(mod, index);
                 return true;
             }
+
+            public bool Remove(string key)
+            {
+                for (var index = _mods.Values.Count - 1; index >= 0; index--)
+                {
+                    var mod = _mods.Values[index];
+                    if (mod.Name == key)
+                    {
+                        InternalRemove(mod, index);
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public void Clear()
+            {
+                for (var index = _mods.Count - 1; index >= 0; index--)
+                {
+                    var mod = this[index];
+                    InternalRemove(mod, index);
+                }
+            }
+
+            void InternalRemove(IMod<T> mod, int index)
+            {
+                _mods.RemoveAt(index);
+
+                mod.OnChanged -= _parent.ModifiersChanged;
+                mod.Release();
+
+                _parent.OnChangeModifiers();
+            }
+
+            #endregion
 
             public int Count => _mods.Count;
 
@@ -280,54 +314,6 @@ namespace StatMaster
                 }
 
                 return x.Age.CompareTo(y.Age);
-            }
-        }
-
-        protected struct Key : IComparable<Key>, IEquatable<Key>
-        {
-            public int Priority;
-            public int Age;
-
-            public Key(int priority, int age)
-            {
-                Priority = priority;
-                Age = age;
-            }
-
-            int IComparable<Key>.CompareTo(Key other)
-            {
-                int result = Priority.CompareTo(other.Priority);
-                if (result != 0)
-                {
-                    return result;
-                }
-
-                return Age.CompareTo(other.Age);
-            }
-
-            public bool Equals(Key other)
-            {
-                return Priority == other.Priority && Age == other.Age;
-            }
-
-            public override bool Equals(object obj)
-            {
-                return obj is Key other && Equals(other);
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(Priority, Age);
-            }
-
-            public static bool operator ==(Key left, Key right)
-            {
-                return left.Equals(right);
-            }
-
-            public static bool operator !=(Key left, Key right)
-            {
-                return !(left == right);
             }
         }
     }

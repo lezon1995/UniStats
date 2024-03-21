@@ -2,15 +2,24 @@
 using System.Numerics;
 #endif
 
-namespace StatMaster
+namespace UniStats
 {
     /// <summary>
     /// Represents a stat that can be modified.
+    /// Initial           原始初始值
+    /// 
+    /// InitialPlus     额外初始值
+    /// BaseTimes    初始值百分比
+    /// BasePlus       额外基础值
+    /// TotalTimes   基础值百分比
+    /// TotalPlus      额外总值
     /// Value = ((Initial + InitialPlus) * BaseTimes + BasePlus) * TotalTimes + TotalPlus.
     /// </summary>
     public class Stat<T> : ModValue<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
+#else
+        where T : struct
 #endif
     {
         public IModValue<T> InitialPlus { get; }
@@ -32,11 +41,11 @@ namespace StatMaster
 
         void InitializeModifiers()
         {
-            Add(100, Mod.Add(InitialPlus));
-            Add(200, Mod.Mul(BaseTimes));
-            Add(300, Mod.Add(BasePlus));
-            Add(400, Mod.Mul(TotalTimes));
-            Add(500, Mod.Add(TotalPlus));
+            Add(100, Mod.Add(InitialPlus, nameof(InitialPlus)));
+            Add(200, Mod.Mul(BaseTimes, nameof(BaseTimes)));
+            Add(300, Mod.Add(BasePlus, nameof(BasePlus)));
+            Add(400, Mod.Mul(TotalTimes, nameof(TotalTimes)));
+            Add(500, Mod.Add(TotalPlus, nameof(TotalPlus)));
         }
 
         #region Utility Methods
@@ -55,5 +64,10 @@ namespace StatMaster
         }
 
         #endregion Utility Methods
+
+        public override string ToString()
+        {
+            return $"{Value} = (({Initial.Value} + {InitialPlus.Value}) * {BaseTimes.Value} + {BasePlus.Value}) * {TotalTimes.Value} + {TotalPlus.Value}";
+        }
     }
 }

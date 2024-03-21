@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
-using StatMaster;
+using UniStats;
 
-namespace StatMaster.Benchmarks
+namespace UniStats.Benchmarks
 {
     /**
     |                         Method |       Mean |     Error |    StdDev |

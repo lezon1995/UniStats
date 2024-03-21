@@ -1,7 +1,7 @@
 #if UNITY_5_3_OR_NEWER
 using System;
 
-namespace StatMaster.Unity
+namespace UniStats.Unity
 {
     [Serializable]
     public class ModValue<T> : ModValue<Property<T>, T>, IModValue<T>

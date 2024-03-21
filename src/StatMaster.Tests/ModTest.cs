@@ -1,7 +1,7 @@
 using StatMaster;
 using Xunit.Abstractions;
 
-namespace StatMaster.Tests
+namespace UniStats.Tests
 {
     public class ModTest
     {

@@ -1,7 +1,7 @@
 using System;
 using System.Numerics;
 
-namespace StatMaster
+namespace UniStats
 {
     public static class ValueExtensions
     {

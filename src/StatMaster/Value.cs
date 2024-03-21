@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 
-namespace StatMaster
+namespace UniStats
 {
     [Serializable]
     public partial class Property<T> : IValue<T>
@@ -37,6 +37,12 @@ namespace StatMaster
             _value = value;
         }
 
+        Property<T> Build(T value)
+        {
+            _value = value;
+            return this;
+        }
+
         public void OnRelease()
         {
             _value = default;
@@ -50,14 +56,12 @@ namespace StatMaster
 
         public static Property<T> Get(T initial = default)
         {
-            if (pool.TryDequeue(out var value))
+            if (pool.TryDequeue(out var property))
             {
-                value._value = initial;
-                return value;
+                return property.Build(initial);
             }
 
-            value = new Property<T>(initial);
-            return value;
+            return new Property<T>(initial);
         }
 
         public static void Release(Property<T> value)
@@ -111,6 +115,23 @@ namespace StatMaster
                 onChange = OnChange;
             }
 
+            DerivedValue<T> Build(Func<T> getter, out ChangeHandler<T> onChange)
+            {
+                Getter = getter;
+                Setter = null;
+                onChange = OnChange;
+                return this;
+            }
+
+            DerivedValue<T> Build(Func<T> getter, Action<T> setter, out ChangeHandler<T> onChange)
+            {
+                Getter = getter;
+                Setter = setter;
+                onChange = OnChange;
+                return this;
+            }
+
+
             void OnChange(T pre, T now)
             {
                 OnChanged?.Invoke(pre, now);
@@ -132,27 +153,20 @@ namespace StatMaster
             {
                 if (pool.TryDequeue(out var value))
                 {
-                    value.Getter = getter;
-                    onChange = value.OnChange;
-                    return value;
+                    return value.Build(getter, out onChange);
                 }
 
-                value = new DerivedValue<T>(getter, out onChange);
-                return value;
+                return new DerivedValue<T>(getter, out onChange);
             }
 
             public static DerivedValue<T> Get(Func<T> getter, Action<T> setter, out ChangeHandler<T> onChange)
             {
                 if (pool.TryDequeue(out var value))
                 {
-                    value.Getter = getter;
-                    value.Setter = setter;
-                    onChange = value.OnChange;
-                    return value;
+                    return value.Build(getter, setter, out onChange);
                 }
 
-                value = new DerivedValue<T>(getter, setter, out onChange);
-                return value;
+                return new DerivedValue<T>(getter, setter, out onChange);
             }
 
             static void Release(DerivedValue<T> value)
@@ -264,6 +278,51 @@ namespace StatMaster
             };
         }
 
+        RangeValue<T> Build(T value, IValue<T> lower, IValue<T> upper)
+        {
+            _value = value;
+            Lower = lower;
+            Lower.OnChanged += BoundChanged;
+
+            Upper = upper;
+            Upper.OnChanged += BoundChanged;
+            return this;
+        }
+
+
+        RangeValue<T> Build(T value, T lower, IValue<T> upper)
+        {
+            releaseAction = () =>
+            {
+                //
+                Property<T>.Release((Property<T>)Lower);
+            };
+
+            return Build(value, Property<T>.Get(lower), upper);
+        }
+
+        RangeValue<T> Build(T value, IValue<T> lower, T upper)
+        {
+            releaseAction = () =>
+            {
+                //
+                Property<T>.Release((Property<T>)Upper);
+            };
+
+            return Build(value, lower, Property<T>.Get(upper));
+        }
+
+        RangeValue<T> Build(T value, T lower, T upper)
+        {
+            releaseAction = () =>
+            {
+                Property<T>.Release((Property<T>)Lower);
+                Property<T>.Release((Property<T>)Upper);
+            };
+
+            return Build(value, Property<T>.Get(lower), Property<T>.Get(upper));
+        }
+
         #endregion
 
         void BoundChanged(T pre, T now)
@@ -301,96 +360,40 @@ namespace StatMaster
         {
             if (pool.TryDequeue(out var value))
             {
-                value._value = initial;
-
-                value.Lower = lower;
-                value.Lower.OnChanged += value.BoundChanged;
-
-                value.Upper = upper;
-                value.Upper.OnChanged += value.BoundChanged;
-                return value;
+                return value.Build(initial, lower, upper);
             }
 
-            value = new RangeValue<T>(initial, lower, upper);
-            return value;
+            return new RangeValue<T>(initial, lower, upper);
         }
 
         public static RangeValue<T> Get(T initial, T lower, IValue<T> upper)
         {
             if (pool.TryDequeue(out var value))
             {
-                value.releaseAction = () =>
-                {
-                    //
-                    Property<T>.Release((Property<T>)value.Lower);
-                };
-
-                var _lower = Property<T>.Get(lower);
-                value._value = initial;
-
-                value.Lower = _lower;
-                value.Lower.OnChanged += value.BoundChanged;
-
-                value.Upper = upper;
-                value.Upper.OnChanged += value.BoundChanged;
-                return value;
+                return value.Build(initial, lower, upper);
             }
 
-            value = new RangeValue<T>(initial, lower, upper);
-            return value;
+            return new RangeValue<T>(initial, lower, upper);
         }
 
         public static RangeValue<T> Get(T initial, IValue<T> lower, T upper)
         {
             if (pool.TryDequeue(out var value))
             {
-                value.releaseAction = () =>
-                {
-                    //
-                    Property<T>.Release((Property<T>)value.Upper);
-                };
-
-                var _upper = Property<T>.Get(upper);
-                value._value = initial;
-
-                value.Lower = lower;
-                value.Lower.OnChanged += value.BoundChanged;
-
-                value.Upper = _upper;
-                value.Upper.OnChanged += value.BoundChanged;
-                return value;
+                return value.Build(initial, lower, upper);
             }
 
-            value = new RangeValue<T>(initial, lower, upper);
-            return value;
+            return new RangeValue<T>(initial, lower, upper);
         }
 
         public static RangeValue<T> Get(T initial, T lower, T upper)
         {
             if (pool.TryDequeue(out var value))
             {
-                value.releaseAction = () =>
-                {
-                    //
-                    Property<T>.Release((Property<T>)value.Lower);
-                    Property<T>.Release((Property<T>)value.Upper);
-                };
-
-                var _lower = Property<T>.Get(lower);
-                var _upper = Property<T>.Get(upper);
-
-                value._value = initial;
-
-                value.Lower = _lower;
-                value.Lower.OnChanged += value.BoundChanged;
-
-                value.Upper = _upper;
-                value.Upper.OnChanged += value.BoundChanged;
-                return value;
+                return value.Build(initial, lower, upper);
             }
 
-            value = new RangeValue<T>(initial, lower, upper);
-            return value;
+            return new RangeValue<T>(initial, lower, upper);
         }
 
         public static void Release(RangeValue<T> value)

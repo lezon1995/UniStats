@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace StatMaster
+namespace UniStats
 {
     public delegate void ChangeHandler();
 
@@ -39,6 +39,7 @@ namespace StatMaster
         void Add(IMod<T> mod);
         void Add(int priority, IMod<T> mod);
         bool Remove(IMod<T> mod);
+        bool Remove(string key);
         bool Contains(IMod<T> mod);
         void Clear();
     }
@@ -59,6 +60,7 @@ namespace StatMaster
 
     public interface IMod<T> : IValueChanged, IPool
     {
+        string Name { get; set; }
         bool Enabled { get; set; }
         T Modify(T given);
     }

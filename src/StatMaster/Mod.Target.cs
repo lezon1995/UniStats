@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace StatMaster
+namespace UniStats
 {
     public static partial class Mod
     {

@@ -1,4 +1,4 @@
-﻿using StatMaster;
+﻿using UniStats;
 
 internal class Program
 {

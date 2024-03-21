@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 
-namespace StatMaster
+namespace UniStats
 {
     public static partial class Mod
     {

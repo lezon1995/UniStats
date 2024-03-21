@@ -1,4 +1,4 @@
-namespace StatMaster.Tests
+namespace UniStats.Tests
 {
     public class ModValueTest
     {

@@ -3,7 +3,7 @@
 using UnityEngine;
 #endif
 
-namespace StatMaster
+namespace UniStats
 {
     public static partial class Mod
     {
@@ -16,9 +16,10 @@ namespace StatMaster
         public interface IOperator<X>
         {
             X Create<T>(T other);
-            X Sum(X a, X b);
-            X Times(X a, X b);
-            X Divide(X a, X b);
+            X Add(X a, X b);
+            X Sub(X a, X b);
+            X Mul(X a, X b);
+            X Div(X a, X b);
             X Negate(X a);
             X Max(X a, X b);
             X Min(X a, X b);
@@ -26,12 +27,14 @@ namespace StatMaster
             X One { get; }
         }
 
-        internal struct OpFloat : IOperator<float>
+        internal class OpFloat : IOperator<float>
         {
+            public static IOperator<float> Instance = new OpFloat();
             public float Create<T>(T other) => Convert.ToSingle(other);
-            public float Sum(float a, float b) => a + b;
-            public float Times(float a, float b) => a * b;
-            public float Divide(float a, float b) => a / b;
+            public float Add(float a, float b) => a + b;
+            public float Sub(float a, float b) => a - b;
+            public float Mul(float a, float b) => a * b;
+            public float Div(float a, float b) => a / b;
             public float Negate(float a) => -a;
             public float Max(float a, float b) => Math.Max(a, b);
             public float Min(float a, float b) => Math.Min(a, b);
@@ -39,12 +42,14 @@ namespace StatMaster
             public float One => 1f;
         }
 
-        internal struct OpDouble : IOperator<double>
+        internal class OpDouble : IOperator<double>
         {
+            public static IOperator<double> Instance = new OpDouble();
             public double Create<T>(T other) => Convert.ToDouble(other);
-            public double Sum(double a, double b) => a + b;
-            public double Times(double a, double b) => a * b;
-            public double Divide(double a, double b) => a / b;
+            public double Add(double a, double b) => a + b;
+            public double Sub(double a, double b) => a - b;
+            public double Mul(double a, double b) => a * b;
+            public double Div(double a, double b) => a / b;
             public double Negate(double a) => -a;
             public double Max(double a, double b) => Math.Max(a, b);
             public double Min(double a, double b) => Math.Min(a, b);
@@ -52,12 +57,14 @@ namespace StatMaster
             public double One => 1.0;
         }
 
-        internal struct OpInt : IOperator<int>
+        internal class OpInt : IOperator<int>
         {
+            public static IOperator<int> Instance = new OpInt();
             public int Create<T>(T other) => Convert.ToInt32(other);
-            public int Sum(int a, int b) => a + b;
-            public int Times(int a, int b) => a * b;
-            public int Divide(int a, int b) => a / b;
+            public int Add(int a, int b) => a + b;
+            public int Sub(int a, int b) => a - b;
+            public int Mul(int a, int b) => a * b;
+            public int Div(int a, int b) => a / b;
             public int Negate(int a) => -a;
             public int Max(int a, int b) => Math.Max(a, b);
             public int Min(int a, int b) => Math.Min(a, b);
@@ -66,8 +73,10 @@ namespace StatMaster
         }
 
 #if UNITY_5_3_OR_NEWER
-        internal struct OpVector3 : IOperator<Vector3>
+        internal class OpVector3 : IOperator<Vector3>
         {
+            public static IOperator<Vector3> Instance = new OpVector3();
+
             public Vector3 Create<T>(T other)
             {
                 var op = GetOperator<float>();
@@ -75,9 +84,10 @@ namespace StatMaster
                 return new Vector3(o, o, o);
             }
 
-            public Vector3 Sum(Vector3 a, Vector3 b) => a + b;
-            public Vector3 Times(Vector3 a, Vector3 b) => Vector3.Scale(a, b);
-            public Vector3 Divide(Vector3 a, Vector3 b) => Vector3.Scale(a, new Vector3(1f / b.x, 1f / b.y, 1f / b.z));
+            public Vector3 Add(Vector3 a, Vector3 b) => a + b;
+            public Vector3 Sub(Vector3 a, Vector3 b) => a - b;
+            public Vector3 Mul(Vector3 a, Vector3 b) => Vector3.Scale(a, b);
+            public Vector3 Div(Vector3 a, Vector3 b) => Vector3.Scale(a, new Vector3(1f / b.x, 1f / b.y, 1f / b.z));
             public Vector3 Negate(Vector3 a) => -a;
             public Vector3 Max(Vector3 a, Vector3 b) => Vector3.Max(a, b);
             public Vector3 Min(Vector3 a, Vector3 b) => Vector3.Min(a, b);
@@ -91,15 +101,15 @@ namespace StatMaster
             switch (Type.GetTypeCode(typeof(S)))
             {
                 case TypeCode.Double:
-                    return (IOperator<S>)(object)default(OpDouble);
+                    return OpDouble.Instance as IOperator<S>;
                 case TypeCode.Single:
-                    return (IOperator<S>)(object)default(OpFloat);
+                    return OpFloat.Instance as IOperator<S>;
                 case TypeCode.Int32:
-                    return (IOperator<S>)(object)default(OpInt);
+                    return OpInt.Instance as IOperator<S>;
                 case TypeCode.Object:
 #if UNITY_5_3_OR_NEWER
                     if (typeof(S) == typeof(Vector3))
-                        return (IOperator<S>)(object)default(OpVector3);
+                        return OpVector3.Instance as IOperator<S>;
                     goto default;
 #endif
                 default:

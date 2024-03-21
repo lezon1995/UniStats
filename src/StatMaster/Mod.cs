@@ -5,7 +5,7 @@ using System.Text;
 using System.Numerics;
 #endif
 
-namespace StatMaster
+namespace UniStats
 {
     public static partial class Mod
     {
@@ -36,7 +36,7 @@ namespace StatMaster
 
     public abstract class AMod<S, T> : IMod<S, T>, IDisposable
     {
-        public string Name { get; internal set; }
+        public string Name { get; set; }
 
         bool _enabled = true;
 
@@ -53,7 +53,7 @@ namespace StatMaster
             }
         }
 
-        public S Context { get; internal set; }
+        public S Context { get; protected set; }
 
         public event ChangeHandler OnChanged;
 
@@ -150,8 +150,18 @@ namespace StatMaster
     {
         Operator Op { get; set; }
 
-        NumMod(S context) : base(context)
+        NumMod(S context, Operator op, string name) : base(context)
         {
+            Op = op;
+            Name = name;
+        }
+
+        NumMod<S, T> Build(S context, Operator op, string name)
+        {
+            Context = context;
+            Op = op;
+            Name = name;
+            return this;
         }
 
 #if NET7_0_OR_GREATER
@@ -175,10 +185,10 @@ namespace StatMaster
             T v = Context.Value;
             return Op switch
             {
-                Operator.Add => t.Sum(given, v),
-                Operator.Subtract => t.Sum(given, t.Negate(v)),
-                Operator.Multiply => t.Times(given, v),
-                Operator.Divide => t.Divide(given, v),
+                Operator.Add => t.Add(given, v),
+                Operator.Subtract => t.Sub(given, v),
+                Operator.Multiply => t.Mul(given, v),
+                Operator.Divide => t.Div(given, v),
                 Operator.Set => v,
                 _ => given
             };
@@ -199,9 +209,7 @@ namespace StatMaster
             if (Name != null)
             {
                 // Append the name enclosed in double quotes
-                sb.Append('"');
                 sb.Append(Name);
-                sb.Append('"');
                 sb.Append(' ');
             }
 
@@ -224,6 +232,7 @@ namespace StatMaster
                     break;
             }
 
+            sb.Append(' ');
             sb.Append(Context.Value);
 
             return sb.ToString();
@@ -236,18 +245,12 @@ namespace StatMaster
 
         public static NumMod<S, T> Get(S context, Operator op, string name)
         {
-            if (pool.TryDequeue(out var value))
+            if (pool.TryDequeue(out var mod))
             {
-                value.Context = context;
-                value.Op = op;
-                value.Name = name;
-                return value;
+                return mod.Build(context, op, name);
             }
 
-            value = new NumMod<S, T>(context);
-            value.Op = op;
-            value.Name = name;
-            return value;
+            return new NumMod<S, T>(context, op, name);
         }
 
         static void Release(NumMod<S, T> value)
@@ -264,14 +267,31 @@ namespace StatMaster
 
     internal partial class FuncMod<T> : AMod<Func<T, T>, T>
     {
-        FuncMod(Func<T, T> func) : base(func)
+        FuncMod(Func<T, T> func, string name) : base(func)
         {
+            Name = name;
         }
 
-        FuncMod(Func<T, T> func, out Action onChange) : this(func)
+        FuncMod(Func<T, T> func, string name, out Action onChange) : this(func, name)
         {
             onChange = OnChange;
         }
+
+        FuncMod<T> Build(Func<T, T> context, string name)
+        {
+            Context = context;
+            Name = name;
+            return this;
+        }
+
+        FuncMod<T> Build(Func<T, T> context, string name, out Action onChange)
+        {
+            Context = context;
+            Name = name;
+            onChange = OnChange;
+            return this;
+        }
+
 
         public override T Modify(T given)
         {
@@ -295,31 +315,22 @@ namespace StatMaster
 
         public static FuncMod<T> Get(Func<T, T> context, string name)
         {
-            if (pool.TryDequeue(out var value))
+            if (pool.TryDequeue(out var mod))
             {
-                value.Context = context;
-                value.Name = name;
-                return value;
+                return mod.Build(context, name);
             }
 
-            value = new FuncMod<T>(context);
-            value.Name = name;
-            return value;
+            return new FuncMod<T>(context, name);
         }
 
         public static FuncMod<T> Get(Func<T, T> context, out Action onChange, string name)
         {
             if (pool.TryDequeue(out var value))
             {
-                value.Context = context;
-                value.Name = name;
-                onChange = value.OnChange;
-                return value;
+                return value.Build(context, name, out onChange);
             }
 
-            value = new FuncMod<T>(context, out onChange);
-            value.Name = name;
-            return value;
+            return new FuncMod<T>(context, name, out onChange);
         }
 
         static void Release(FuncMod<T> value)
@@ -340,8 +351,15 @@ namespace StatMaster
         where T : INumber<T>
 #endif
     {
-        CastMod(IMod<S> context) : base(context)
+        CastMod(IMod<S> context, string name) : base(context)
         {
+            Name = name;
+        }
+
+        CastMod<S, T> Build(IMod<S> context, string name)
+        {
+            Name = name;
+            return this;
         }
 
 #if NET7_0_OR_GREATER
@@ -372,14 +390,10 @@ namespace StatMaster
         {
             if (pool.TryDequeue(out var value))
             {
-                value.Context = context;
-                value.Name = name;
-                return value;
+                return value.Build(context, name);
             }
 
-            value = new CastMod<S, T>(context);
-            value.Name = name;
-            return value;
+            return new CastMod<S, T>(context, name);
         }
 
         static void Release(CastMod<S, T> value)
@@ -404,10 +418,20 @@ namespace StatMaster
             set => Decorated.Enabled = value;
         }
 
-        WrapMod(S context, IMod<T> inner) : base(context)
+        WrapMod(S context, IMod<T> inner, string name) : base(context)
         {
             Decorated = inner;
             Decorated.OnChanged += Chain;
+            Name = name;
+        }
+
+        WrapMod<S, T> Build(S context, IMod<T> inner, string name)
+        {
+            Context = context;
+            Decorated = inner;
+            Decorated.OnChanged += Chain;
+            Name = name;
+            return this;
         }
 
         public override T Modify(T given)
@@ -436,15 +460,10 @@ namespace StatMaster
         {
             if (pool.TryDequeue(out var value))
             {
-                value.Context = context;
-                value.Decorated = inner;
-                value.Name = name;
-                return value;
+                return value.Build(context, inner, name);
             }
 
-            value = new WrapMod<S, T>(context, inner);
-            value.Name = name;
-            return value;
+            return new WrapMod<S, T>(context, inner, name);
         }
 
         static void Release(WrapMod<S, T> value)

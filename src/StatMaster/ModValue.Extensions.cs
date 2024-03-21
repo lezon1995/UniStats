@@ -1,8 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 
-namespace StatMaster
+namespace UniStats
 {
     public static class ModValueExtensions
     {
@@ -54,6 +55,63 @@ namespace StatMaster
             return accum;
         }
 #else
+
+        public static string AddFlat<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var mod = Mod.Add(delta, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string AddPercent<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var op = Mod.GetOperator<T>();
+            var one = op.One;
+            var sum = op.Add(one, delta);
+            var mod = Mod.Mul(sum, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string SubFlat<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var mod = Mod.Sub(delta, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string SubPercent<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var op = Mod.GetOperator<T>();
+            var one = op.One;
+            var sum = op.Sub(one, delta);
+            var mod = Mod.Mul(sum, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static bool Remove<T>(this IModValue<IValue<T>, T> modValue, string key) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            return modValue.Remove(key);
+        }
+
         public static T ProbeDelta<T>(this IModValue<IValue<T>, T> modValue, IMod<T> mod)
         {
             var op = Mod.GetOperator<T>();
@@ -61,9 +119,9 @@ namespace StatMaster
             foreach (
                 var delta in modValue
                     .ProbeAffects(mod)
-                    .Select(x => op.Sum(x.after, op.Negate(x.before)))
+                    .Select(x => op.Sub(x.after, x.before))
             )
-                accum = op.Sum(accum, delta);
+                accum = op.Add(accum, delta);
             return accum;
         }
 #endif
