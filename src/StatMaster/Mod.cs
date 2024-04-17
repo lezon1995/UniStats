@@ -163,7 +163,7 @@ namespace UniStats
         public override T Modify(T given)
         {
             var t = Mod.GetOperator<T>();
-            T v = _context.Value;
+            T v = _value.Value;
             return _op switch
             {
                 Operator.Add => t.Add(given, v),
@@ -360,7 +360,7 @@ namespace UniStats
 #else
             var s = Mod.GetOperator<S>();
             var t = Mod.GetOperator<T>();
-            return t.Create(_context.Modify(s.Create(given)));
+            return t.Create(_mod.Modify(s.Create(given)));
 #endif
         }
 
