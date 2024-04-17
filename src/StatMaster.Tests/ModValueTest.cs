@@ -6,7 +6,7 @@ namespace UniStats.Tests
         ModValue<float> curHealth;
         IMod<float> boost;
         IMod<float> boost20;
-        IMod<IValue<float>, float> damage;
+        NumMod<float> damage;
 
         int countHealth;
         int countCurrentHealth;
@@ -67,7 +67,7 @@ namespace UniStats.Tests
         public void Unmodified_Test()
         {
             // Clear all modifiers from health
-            health.Clear();
+            health.Clear(false);
 
             // Assert initial and current health values
             Assert.Equal(100f, health.Initial.Value);
@@ -122,7 +122,7 @@ namespace UniStats.Tests
             Assert.Equal(110f, health.Value);
 
             // Act
-            damage.Context.Value = 10f;
+            damage.Value.Value = 10f;
 
             // Assert notification counts
             Assert.Equal(0, countHealth);
@@ -333,7 +333,7 @@ namespace UniStats.Tests
         [Fact]
         public void ModifierPriority_Test()
         {
-            health.Clear();
+            health.Clear(false);
 
             health.Add(boost);
             health.Add(-10, damage);

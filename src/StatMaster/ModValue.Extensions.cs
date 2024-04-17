@@ -37,6 +37,62 @@ namespace UniStats
         }
 
 #if NET7_0_OR_GREATER
+
+        public static string AddFlat<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct, INumber<T>
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var mod = Mod.Add(delta, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string AddPercent<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct, INumber<T>
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var one = T.One;
+            var sum = one + delta;
+            var mod = Mod.Mul(sum, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string SubFlat<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct, INumber<T>
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var mod = Mod.Sub(delta, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static string SubPercent<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct, INumber<T>
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                key = Guid.NewGuid().ToString();
+
+            var one = T.One;
+            var sum = one - delta;
+            var mod = Mod.Mul(sum, key);
+            modValue.Add(mod);
+            return key;
+        }
+
+        public static bool Remove<T>(this IModValue<IValue<T>, T> modValue, string key) where T : struct
+        {
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return false;
+            }
+
+            return modValue.Remove(key);
+        }
+
+
         /// <summary>
         /// Returns the delta a modifier (may be multiple) does.
         /// </summary>
@@ -55,7 +111,6 @@ namespace UniStats
             return accum;
         }
 #else
-
         public static string AddFlat<T>(this IModListValue<T> modValue, T delta, string key = null) where T : struct
         {
             if (string.IsNullOrWhiteSpace(key))

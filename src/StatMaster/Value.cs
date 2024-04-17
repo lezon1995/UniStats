@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+#if UNITY_5_3_OR_NEWER
+using UnityEngine;
+#endif
 
 namespace UniStats
 {
@@ -10,7 +13,7 @@ namespace UniStats
         public event ChangeHandler<T> OnChanged;
 
 #if UNITY_5_3_OR_NEWER
-        [UnityEngine.SerializeField]
+        [SerializeField]
 #endif
         T _value;
 
@@ -19,7 +22,7 @@ namespace UniStats
             get => _value;
             set
             {
-                if (!_value.Equals(value))
+                if (!EqualityComparer<T>.Default.Equals(_value, value))
                 {
                     var pre = _value;
                     _value = value;
@@ -200,7 +203,7 @@ namespace UniStats
 #if NET7_0_OR_GREATER
                 if (_value != now)
 #else
-                if (EqualityComparer<T>.Default.Equals(_value, now) == false)
+                if (!EqualityComparer<T>.Default.Equals(_value, now))
 #endif
                 {
                     var pre = _value;

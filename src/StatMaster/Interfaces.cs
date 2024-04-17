@@ -3,18 +3,7 @@ using System.Collections.Generic;
 namespace UniStats
 {
     public delegate void ChangeHandler();
-
     public delegate void ChangeHandler<T>(T pre, T now);
-
-    public interface IValueChanged<T>
-    {
-        event ChangeHandler<T> OnChanged;
-    }
-
-    public interface IValueChanged
-    {
-        event ChangeHandler OnChanged;
-    }
 
     public interface IPool
     {
@@ -22,8 +11,9 @@ namespace UniStats
         void OnRelease();
     }
 
-    public interface IValue<T> : IValueChanged<T>, IPool
+    public interface IValue<T> : IPool
     {
+        event ChangeHandler<T> OnChanged;
         T Value { get; set; }
     }
 
@@ -35,13 +25,14 @@ namespace UniStats
 
     public interface IModListValue<T> : IValue<T>
     {
-        IPriorityList<IMod<T>> Mods { get; }
+        IList<IMod<T>> Mods { get; }
         void Add(IMod<T> mod);
         void Add(int priority, IMod<T> mod);
-        bool Remove(IMod<T> mod);
-        bool Remove(string key);
+        bool Remove(IMod<T> mod, bool releaseMod = true);
+        bool Remove(string key, bool releaseMod = true);
+        bool RemoveAll(string key, bool releaseMod = true);
         bool Contains(IMod<T> mod);
-        void Clear();
+        void Clear(bool releaseMod = true);
     }
 
     public interface IModValue<out S, T> : IModListValue<T>
@@ -53,21 +44,13 @@ namespace UniStats
     {
     }
 
-    public interface IPriorityList<T> : ICollection<T>
+    public interface IMod<T> : IPool
     {
-        T this[int index] { get; }
-    }
-
-    public interface IMod<T> : IValueChanged, IPool
-    {
+        event ChangeHandler OnChanged;
+        public Key Key { get; set; }
         string Name { get; set; }
         bool Enabled { get; set; }
         T Modify(T given);
-    }
-
-    public interface IMod<out S, T> : IMod<T>
-    {
-        S Context { get; }
     }
 
     public interface ITarget<in S, T>

@@ -96,75 +96,75 @@ namespace UniStats
         }
 #endif
 
-        public static IOperator<S> GetOperator<S>()
+        public static IOperator<T> GetOperator<T>()
         {
-            switch (Type.GetTypeCode(typeof(S)))
+            switch (Type.GetTypeCode(typeof(T)))
             {
                 case TypeCode.Double:
-                    return OpDouble.Instance as IOperator<S>;
+                    return OpDouble.Instance as IOperator<T>;
                 case TypeCode.Single:
-                    return OpFloat.Instance as IOperator<S>;
+                    return OpFloat.Instance as IOperator<T>;
                 case TypeCode.Int32:
-                    return OpInt.Instance as IOperator<S>;
+                    return OpInt.Instance as IOperator<T>;
                 case TypeCode.Object:
 #if UNITY_5_3_OR_NEWER
-                    if (typeof(S) == typeof(Vector3))
-                        return OpVector3.Instance as IOperator<S>;
+                    if (typeof(T) == typeof(Vector3))
+                        return OpVector3.Instance as IOperator<T>;
                     goto default;
 #endif
                 default:
-                    throw new NotImplementedException($"No IOperator<T> implementation for type {typeof(S)}.");
+                    throw new NotImplementedException($"No IOperator<T> implementation for type {typeof(T)}.");
             }
         }
 
-        public static IMod<IValue<S>, S> Add<S>(S v, string name = null) where S : struct
+        public static NumMod<T> Add<T>(T v, string name = null) where T : struct
         {
-            return Add(Property<S>.Get(v), name);
+            return Add(Property<T>.Get(v), name);
         }
 
-        public static IMod<IValue<S>, S> Add<S>(IValue<S> v, string name = null)
+        public static NumMod<T> Add<T>(IValue<T> v, string name = null)
         {
-            return NumMod<IValue<S>, S>.Get(v, Operator.Add, name);
+            return NumMod<T>.Get(v, Operator.Add, name);
         }
 
-        public static IMod<IValue<S>, S> Mul<S>(S v, string name = null) where S : struct
+        public static NumMod<T> Mul<T>(T v, string name = null) where T : struct
         {
-            return Mul(Property<S>.Get(v), name);
+            return Mul(Property<T>.Get(v), name);
         }
 
-        public static IMod<IValue<S>, S> Mul<S>(IValue<S> v, string name = null)
+        public static NumMod<T> Mul<T>(IValue<T> v, string name = null)
         {
-            return NumMod<IValue<S>, S>.Get(v, Operator.Multiply, name);
+            return NumMod<T>.Get(v, Operator.Mul, name);
         }
 
-        public static IMod<IValue<S>, S> Sub<S>(S v, string name = null) where S : struct
+        public static NumMod<T> Sub<T>(T v, string name = null) where T : struct
         {
-            return Sub(Property<S>.Get(v), name);
+            return Sub(Property<T>.Get(v), name);
         }
 
-        public static IMod<IValue<S>, S> Sub<S>(IValue<S> v, string name = null)
+        public static NumMod<T> Sub<T>(IValue<T> v, string name = null)
         {
-            return NumMod<IValue<S>, S>.Get(v, Operator.Subtract, name);
+            return NumMod<T>.Get(v, Operator.Sub, name);
         }
 
-        public static IMod<IValue<S>, S> Div<S>(S v, string name = null) where S : struct
+        public static NumMod<T> Div<T>(T v, string name = null) where T : struct
         {
-            return Div(Property<S>.Get(v), name);
+            return Div(Property<T>.Get(v), name);
         }
 
-        public static IMod<IValue<S>, S> Div<S>(IValue<S> v, string name = null)
+        public static NumMod<T> Div<T>(IValue<T> v, string name = null)
         {
-            return NumMod<IValue<S>, S>.Get(v, Operator.Divide, name);
+            return NumMod<T>.Get(v, Operator.Div, name);
         }
 
-        public static IMod<IValue<S>, S> Set<S>(S v, string name = null) where S : struct
+        public static NumMod<T> Set<T>(T v, string name = null) where T : struct
         {
-            return Set(Property<S>.Get(v), name);
+            return Set(Property<T>.Get(v), name);
         }
 
-        public static IMod<IValue<S>, S> Set<S>(IValue<S> v, string name = null)
+        public static NumMod<T> Set<T>(IValue<T> v, string name = null)
         {
-            return NumMod<IValue<S>, S>.Get(v, Operator.Set, name);
+            return NumMod<T>.Get(v, Operator.Set, name);
         }
 
 #endif

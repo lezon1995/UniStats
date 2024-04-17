@@ -45,15 +45,19 @@ namespace UniStats
         /// <summary>
         /// Subscribes to the property change events of an object and executes the specified action.
         /// </summary>
-        /// <typeparam name="T">The type of the object implementing <see cref="IValueChanged"/>.</typeparam>
+        /// <typeparam name="T">The type of the object implementing <see cref="IValue"/>.</typeparam>
         /// <param name="v">The object to subscribe to.</param>
         /// <param name="action">The action to execute on property change.</param>
         /// <returns>An <see cref="IDisposable"/> representing the subscription.</returns>
-        public static IDisposable OnChange<T>(this T v, Action<T> action) where T : IValueChanged
+        public static IDisposable OnChange<T>(this T v, Action<T> action) where T : IValue<T>
         {
             v.OnChanged += PropertyChange;
             return new ActionDisposable(() => v.OnChanged -= PropertyChange);
-            void PropertyChange() => action(v);
+
+            void PropertyChange(T pre, T now)
+            {
+                action(v);
+            }
         }
 
         /// <summary>

@@ -1,4 +1,3 @@
-using StatMaster;
 using Xunit.Abstractions;
 
 namespace UniStats.Tests
@@ -28,11 +27,11 @@ namespace UniStats.Tests
         [Fact]
         public void Covariance_Test()
         {
-            IMod<IValue<int>, int> m = Mod.Add(new Property<int>(1));
-            Assert.True(m is IMod<IValue<int>, int>);
-            Assert.True(m is IMod<IValue<int>, int>);
-            IMod<IValue<int>, int> n = (IMod<IValue<int>, int>)m;
-            Assert.True(n is IMod<IValue<int>, int>);
+            IMod<int> m = Mod.Add(new Property<int>(1));
+            Assert.True(m is IMod<int>);
+            Assert.True(m is IMod<int>);
+            IMod<int> n = (IMod<int>)m;
+            Assert.True(n is IMod<int>);
         }
     }
 }

@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+#if UNITY_5_3_OR_NEWER
+using UnityEngine;
+#endif
+
 #if NET7_0_OR_GREATER
 using System.Numerics;
 #endif
@@ -19,25 +23,40 @@ namespace UniStats
             return FuncMod<T>.Get(func, name);
         }
 
-        public static IMod<S, T> WithContext<S, T>(this IMod<T> mod, S context, string name = null)
+        public static WrapMod<S, T> WithContext<S, T>(this IMod<T> mod, S context, string name = null)
         {
             return WrapMod<S, T>.Get(context, mod, name);
         }
     }
 
-    enum Operator
+    public enum Operator
     {
         Add,
-        Subtract,
-        Multiply,
-        Divide,
+        Sub,
+        Mul,
+        Div,
         Set,
     }
 
-    public abstract class AMod<S, T> : IMod<S, T>, IDisposable
+    [Serializable]
+    public abstract class AMod<T> : IMod<T>, IDisposable
     {
-        public string Name { get; set; }
+        public Key Key { get; set; }
 
+#if UNITY_5_3_OR_NEWER
+        [SerializeField]
+#endif
+        protected string _name;
+
+        public string Name
+        {
+            get => _name;
+            set => _name = value;
+        }
+
+#if UNITY_5_3_OR_NEWER
+        [SerializeField]
+#endif
         bool _enabled = true;
 
         public virtual bool Enabled
@@ -53,24 +72,7 @@ namespace UniStats
             }
         }
 
-        public S Context { get; protected set; }
-
         public event ChangeHandler OnChanged;
-
-        protected AMod(S context)
-        {
-            switch (context)
-            {
-                case IValueChanged notify:
-                    notify.OnChanged += Chain;
-                    break;
-                case IValueChanged<T> notifyT:
-                    notifyT.OnChanged += Chain;
-                    break;
-            }
-
-            Context = context;
-        }
 
         public abstract T Modify(T given);
 
@@ -79,101 +81,80 @@ namespace UniStats
             OnChanged?.Invoke();
         }
 
-        internal void Chain()
+        protected void OnChange(T pre, T now)
         {
-            OnChange();
-        }
-
-        void Chain(T pre, T now)
-        {
-            OnChange();
+            OnChanged?.Invoke();
         }
 
         public void Dispose()
         {
-            switch (Context)
-            {
-                case IValueChanged notify:
-                    notify.OnChanged -= Chain;
-                    break;
-                case IValueChanged<T> notifyT:
-                    notifyT.OnChanged -= Chain;
-                    break;
-            }
         }
 
         public abstract void Release();
 
         public virtual void OnRelease()
         {
-            Name = null;
+            _name = null;
             _enabled = true;
-            switch (Context)
-            {
-                case IValueChanged notify:
-                    notify.OnChanged -= Chain;
-                    break;
-                case IValueChanged<T> notifyT:
-                    notifyT.OnChanged -= Chain;
-                    break;
-            }
-
-            if (Context is IPool pool)
-            {
-                pool.Release();
-            }
-
-            Context = default;
             OnChanged = null;
-        }
-
-        public override string ToString()
-        {
-            var sb = new StringBuilder();
-            if (Name != null)
-            {
-                sb.Append('"');
-                sb.Append(Name);
-                sb.Append('"');
-                sb.Append(' ');
-            }
-
-            sb.Append(Context);
-            return sb.ToString();
         }
     }
 
-    internal partial class NumMod<S, T> : AMod<S, T> where S : IValue<T>
+    [Serializable]
+    public partial class NumMod<T> : AMod<T>
 #if NET7_0_OR_GREATER
         where T : INumber<T>
 #endif
     {
-        Operator Op { get; set; }
+#if UNITY_5_3_OR_NEWER
+        [SerializeField]
+#endif
+        IValue<T> _value;
+        public IValue<T> Value => _value;
 
-        NumMod(S context, Operator op, string name) : base(context)
+#if UNITY_5_3_OR_NEWER
+        [SerializeField]
+#endif
+        Operator _op;
+
+        NumMod(IValue<T> context, Operator op, string name)
         {
-            Op = op;
-            Name = name;
+            ConstructContext(context);
+            _op = op;
+            _name = name;
         }
 
-        NumMod<S, T> Build(S context, Operator op, string name)
+        NumMod<T> Build(IValue<T> context, Operator op, string name)
         {
-            Context = context;
-            Op = op;
-            Name = name;
+            ConstructContext(context);
+            _op = op;
+            _name = name;
             return this;
+        }
+
+        void ConstructContext(IValue<T> context)
+        {
+            context.OnChanged += OnChange;
+            _value = context;
+        }
+
+        protected void DeconstructContext()
+        {
+            _value.Release();
+            _value.OnChanged -= OnChange;
+            _value = null;
         }
 
 #if NET7_0_OR_GREATER
         public override T Modify(T given)
         {
-            T v = Context.Value;
-            return Op switch
+            T v = _value.Value;
+            return _op switch
             {
                 Operator.Add => given + v,
-                Operator.Subtract => given - v,
-                Operator.Multiply => given * v,
-                Operator.Divide => given / v,
+                Operator.Sub => given - v,
+                Operator.Mul => given * v,
+                Operator.Div => given / v,
                 Operator.Set => v,
                 _ => given
             };
@@ -182,13 +163,13 @@ namespace UniStats
         public override T Modify(T given)
         {
             var t = Mod.GetOperator<T>();
-            T v = Context.Value;
-            return Op switch
+            T v = _context.Value;
+            return _op switch
             {
                 Operator.Add => t.Add(given, v),
-                Operator.Subtract => t.Sub(given, v),
-                Operator.Multiply => t.Mul(given, v),
-                Operator.Divide => t.Div(given, v),
+                Operator.Sub => t.Sub(given, v),
+                Operator.Mul => t.Mul(given, v),
+                Operator.Div => t.Div(given, v),
                 Operator.Set => v,
                 _ => given
             };
@@ -198,33 +179,30 @@ namespace UniStats
 
         public override void OnRelease()
         {
-            Op = default;
+            DeconstructContext();
+            _op = default;
             base.OnRelease();
         }
 
         public override string ToString()
         {
             var sb = new StringBuilder();
-            // builder.Append("ref ");
-            if (Name != null)
-            {
-                // Append the name enclosed in double quotes
-                sb.Append(Name);
-                sb.Append(' ');
-            }
+            sb.Append("Num[");
+            sb.Append(_name);
+            sb.Append("]");
 
-            switch (Op)
+            switch (_op)
             {
                 case Operator.Add:
                     sb.Append('+');
                     break;
-                case Operator.Subtract:
+                case Operator.Sub:
                     sb.Append('-');
                     break;
-                case Operator.Multiply:
+                case Operator.Mul:
                     sb.Append('*');
                     break;
-                case Operator.Divide:
+                case Operator.Div:
                     sb.Append('/');
                     break;
                 case Operator.Set:
@@ -233,27 +211,27 @@ namespace UniStats
             }
 
             sb.Append(' ');
-            sb.Append(Context.Value);
+            sb.Append(_value.Value);
 
             return sb.ToString();
         }
     }
 
-    internal partial class NumMod<S, T>
+    public partial class NumMod<T>
     {
-        static Queue<NumMod<S, T>> pool = new Queue<NumMod<S, T>>();
+        static Queue<NumMod<T>> pool = new Queue<NumMod<T>>();
 
-        public static NumMod<S, T> Get(S context, Operator op, string name)
+        public static NumMod<T> Get(IValue<T> context, Operator op, string name)
         {
             if (pool.TryDequeue(out var mod))
             {
                 return mod.Build(context, op, name);
             }
 
-            return new NumMod<S, T>(context, op, name);
+            return new NumMod<T>(context, op, name);
         }
 
-        static void Release(NumMod<S, T> value)
+        static void Release(NumMod<T> value)
         {
             value.OnRelease();
             pool.Enqueue(value);
@@ -265,11 +243,15 @@ namespace UniStats
         }
     }
 
-    internal partial class FuncMod<T> : AMod<Func<T, T>, T>
+    [Serializable]
+    public partial class FuncMod<T> : AMod<T>
     {
-        FuncMod(Func<T, T> func, string name) : base(func)
+        Func<T, T> _context;
+
+        FuncMod(Func<T, T> func, string name)
         {
-            Name = name;
+            _context = func;
+            _name = name;
         }
 
         FuncMod(Func<T, T> func, string name, out Action onChange) : this(func, name)
@@ -277,39 +259,43 @@ namespace UniStats
             onChange = OnChange;
         }
 
-        FuncMod<T> Build(Func<T, T> context, string name)
+        FuncMod<T> Build(Func<T, T> func, string name)
         {
-            Context = context;
-            Name = name;
+            _context = func;
+            _name = name;
             return this;
         }
 
-        FuncMod<T> Build(Func<T, T> context, string name, out Action onChange)
+        FuncMod<T> Build(Func<T, T> func, string name, out Action onChange)
         {
-            Context = context;
-            Name = name;
+            _context = func;
+            _name = name;
             onChange = OnChange;
             return this;
         }
 
-
         public override T Modify(T given)
         {
-            return Context(given);
+            return _context(given);
         }
 
         public override string ToString()
         {
-            return Name ?? "?f()";
+            var sb = new StringBuilder();
+            sb.Append("Func[");
+            sb.Append(_name);
+            sb.Append("]");
+            return sb.ToString();
         }
 
         public override void OnRelease()
         {
+            _context = null;
             base.OnRelease();
         }
     }
 
-    internal partial class FuncMod<T>
+    public partial class FuncMod<T>
     {
         static Queue<FuncMod<T>> pool = new Queue<FuncMod<T>>();
 
@@ -345,44 +331,60 @@ namespace UniStats
         }
     }
 
-    internal partial class CastMod<S, T> : AMod<IMod<S>, T>
+    [Serializable]
+    public partial class CastMod<S, T> : AMod<T>
 #if NET7_0_OR_GREATER
         where S : INumber<S>
         where T : INumber<T>
 #endif
     {
-        CastMod(IMod<S> context, string name) : base(context)
+        IMod<S> _mod;
+
+        CastMod(IMod<S> context, string name)
         {
-            Name = name;
+            ConstructContext(context);
+            _name = name;
         }
 
-        CastMod<S, T> Build(IMod<S> context, string name)
+        CastMod<S, T> Build(IMod<S> mod, string name)
         {
-            Name = name;
+            ConstructContext(mod);
+            _name = name;
             return this;
         }
 
+        public override T Modify(T given)
+        {
 #if NET7_0_OR_GREATER
-        public override T Modify(T given)
-        {
-            return T.CreateChecked(Context.Modify(S.CreateChecked(given)));
-        }
+            return T.CreateChecked(_mod.Modify(S.CreateChecked(given)));
 #else
-        public override T Modify(T given)
-        {
             var s = Mod.GetOperator<S>();
             var t = Mod.GetOperator<T>();
-            return t.Create(Context.Modify(s.Create(given)));
-        }
+            return t.Create(_context.Modify(s.Create(given)));
 #endif
+        }
+
+        void ConstructContext(IMod<S> context)
+        {
+            context.OnChanged += OnChange;
+            _mod = context;
+        }
+
+        protected void DeconstructContext()
+        {
+            _mod.Release();
+            _mod.OnChanged -= OnChange;
+            _mod = null;
+        }
 
         public override void OnRelease()
         {
+            DeconstructContext();
             base.OnRelease();
         }
     }
 
-    internal partial class CastMod<S, T>
+    public partial class CastMod<S, T>
     {
         static Queue<CastMod<S, T>> pool = new Queue<CastMod<S, T>>();
 
@@ -402,14 +404,25 @@ namespace UniStats
             pool.Enqueue(value);
         }
 
+        public override string ToString()
+        {
+            var sb = new StringBuilder();
+            sb.Append("Cast[");
+            sb.Append(_name);
+            sb.Append("]");
+            return sb.ToString();
+        }
+
         public override void Release()
         {
             Release(this);
         }
     }
 
-    internal partial class WrapMod<S, T> : AMod<S, T>, IDecorator<IMod<T>>
+    [Serializable]
+    public partial class WrapMod<S, T> : AMod<T>, IDecorator<IMod<T>>
     {
+        S _context;
         public IMod<T> Decorated { get; set; }
 
         public override bool Enabled
@@ -418,19 +431,20 @@ namespace UniStats
             set => Decorated.Enabled = value;
         }
 
-        WrapMod(S context, IMod<T> inner, string name) : base(context)
+        WrapMod(S context, IMod<T> inner, string name)
         {
+            ConstructContext(context);
             Decorated = inner;
-            Decorated.OnChanged += Chain;
-            Name = name;
+            Decorated.OnChanged += OnChange;
+            _name = name;
         }
 
         WrapMod<S, T> Build(S context, IMod<T> inner, string name)
         {
-            Context = context;
+            ConstructContext(context);
             Decorated = inner;
-            Decorated.OnChanged += Chain;
-            Name = name;
+            Decorated.OnChanged += OnChange;
+            _name = name;
             return this;
         }
 
@@ -439,20 +453,58 @@ namespace UniStats
             return Decorated.Modify(given);
         }
 
+        void ConstructContext(S context)
+        {
+            switch (context)
+            {
+                case IMod<T> notifyT:
+                    notifyT.OnChanged += OnChange;
+                    break;
+                case IValue<T> notifyT:
+                    notifyT.OnChanged += OnChange;
+                    break;
+            }
+
+            _context = context;
+        }
+
+        protected void DeconstructContext()
+        {
+            switch (_context)
+            {
+                case IMod<T> mod:
+                    mod.Release();
+                    mod.OnChanged -= OnChange;
+                    break;
+                case IValue<T> value:
+                    value.Release();
+                    value.OnChanged -= OnChange;
+                    break;
+            }
+
+            _context = default;
+        }
+
         public override void OnRelease()
         {
-            Decorated.OnChanged -= Chain;
+            DeconstructContext();
+            Decorated.OnChanged -= OnChange;
             Decorated = default;
             base.OnRelease();
         }
 
         public override string ToString()
         {
-            return Decorated.ToString();
+            var sb = new StringBuilder();
+            sb.Append("Cast[");
+            sb.Append(_name);
+            sb.Append("]");
+            sb.Append(Decorated);
+            return sb.ToString();
         }
     }
 
-    internal partial class WrapMod<S, T>
+    public partial class WrapMod<S, T>
     {
         static Queue<WrapMod<S, T>> pool = new Queue<WrapMod<S, T>>();
 
